@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.client.AiAnalysisClient;
 import com.example.demo.domain.Alert;
 import com.example.demo.domain.Device;
 import com.example.demo.domain.DeviceStatusLog;
@@ -8,6 +9,7 @@ import com.example.demo.domain.enums.AlertType;
 import com.example.demo.domain.enums.DeviceStatusType;
 import com.example.demo.dto.request.DeviceCreateRequestDto;
 import com.example.demo.dto.request.DeviceStatusCreateRequestDto;
+import com.example.demo.dto.response.AiDeviceStatusResponseDto;
 import com.example.demo.dto.response.AlertResponseDto;
 import com.example.demo.dto.response.DeviceResponseDto;
 import com.example.demo.dto.response.DeviceStatusResponseDto;
@@ -29,6 +31,7 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final DeviceStatusLogRepository deviceStatusLogRepository;
     private final AlertRepository alertRepository;
+    private final AiAnalysisClient aiAnalysisClient;
 
     // 장비 등록
     @Transactional
@@ -62,13 +65,14 @@ public class DeviceService {
     public Long createDeviceStatusLog(DeviceStatusCreateRequestDto requestDto) {
         Device device = getDeviceEntity(requestDto.getDeviceId());
 
-        double riskScore = calculateRiskScore(
+        AiDeviceStatusResponseDto aiResult = aiAnalysisClient.predictDeviceStatus(
                 requestDto.getTemperature(),
                 requestDto.getVibration(),
                 requestDto.getNoise()
         );
 
-        DeviceStatusType status = decideDeviceStatus(riskScore);
+        double riskScore = aiResult.getRiskScore();
+        DeviceStatusType status = DeviceStatusType.valueOf(aiResult.getStatus());
 
         DeviceStatusLog statusLog = DeviceStatusLog.builder()
                 .device(device)
@@ -81,10 +85,8 @@ public class DeviceService {
 
         DeviceStatusLog savedLog = deviceStatusLogRepository.save(statusLog);
 
-        // 장비 현재 상태 업데이트
         device.updateStatus(status);
 
-        // WARNING 이상이면 알림 자동 생성
         if (status == DeviceStatusType.WARNING || status == DeviceStatusType.DANGER) {
             createDeviceRiskAlert(device, riskScore, status);
         }
