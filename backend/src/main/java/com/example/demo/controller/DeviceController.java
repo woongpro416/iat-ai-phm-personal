@@ -23,7 +23,7 @@ public class DeviceController {
 
 
     //장비 등록
-    @PostMapping("/devies")
+    @PostMapping("/devices")
     public ResponseEntity<Long> createDevice(
             @RequestBody @Valid DeviceCreateRequestDto requestDto) {
         Long deviceId = deviceService.createDevice(requestDto);

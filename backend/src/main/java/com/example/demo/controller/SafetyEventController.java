@@ -6,8 +6,10 @@ import com.example.demo.service.SafetyEventService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -31,7 +33,7 @@ public class SafetyEventController {
         return ResponseEntity.ok(safetyEventService.getSafetyEventList());
     }
 
-    @GetMapping("/device/{deviceId")
+    @GetMapping("/device/{deviceId}")
     public ResponseEntity<List<SafetyEventResponseDto>> getSafetyEventsByDevice(
             @PathVariable Long deviceId
     ) {
@@ -42,5 +44,14 @@ public class SafetyEventController {
     public ResponseEntity<Void> resolveSafetyEvent(@PathVariable Long eventId) {
         safetyEventService.resolveSafetyEvent(eventId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Long> createSafetyEventFromImage(
+            @RequestParam("deviceId") Long deviceId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        Long eventId = safetyEventService.createSafetyEventFromImage(deviceId, file);
+        return ResponseEntity.status(HttpStatus.CREATED).body(eventId);
     }
 }

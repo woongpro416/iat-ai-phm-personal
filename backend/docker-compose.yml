@@ -6,8 +6,8 @@ services:
     ports:
       - "5432:5432"  # 로컬 접속 포트를 5432로 변경
     environment:
-      POSTGRES_DB: iotdb      # DB명 일치
-      POSTGRES_USER: iotuser  # 사용자명 일치
+      POSTGRES_DB: iat-ai-phm-postgres      # DB명 일치
+      POSTGRES_USER: postgres  # 사용자명 일치
       POSTGRES_PASSWORD: 1234 # 비밀번호 일치
     volumes:
       - iat_ai_phm_data:/var/lib/postgresql/data

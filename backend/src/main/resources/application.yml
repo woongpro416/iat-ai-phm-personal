@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/iotdb
-    username: iotuser
-    password: 1234
+    url: jdbc:postgresql://localhost:5432/iat-ai-phm-postgres
+    username: postgres
+    password: "1234"
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -15,6 +15,11 @@ spring:
       hibernate:
         format_sql: true
     show-sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
 
 ai:
   server:

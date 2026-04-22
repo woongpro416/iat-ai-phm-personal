@@ -48,6 +48,9 @@ dependencies {
     // Actuator 서버 상태 확인용
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
+    // multipart 전송 중 org.reactivestreams.Publisher 누락 해결
+    implementation 'org.reactivestreams:reactive-streams:1.0.4'
+
 
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

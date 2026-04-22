@@ -9,6 +9,7 @@ import com.example.demo.domain.enums.AlertType;
 import com.example.demo.domain.enums.SafetyEventType;
 import com.example.demo.dto.ai.AiSafetyDetectionResponseDto;
 import com.example.demo.dto.request.SafetyEventCreateRequestDto;
+import com.example.demo.dto.response.AiSafetyImageDetectionResponseDto;
 import com.example.demo.dto.response.SafetyEventResponseDto;
 import com.example.demo.repository.AlertRepository;
 import com.example.demo.repository.DeviceRepository;
@@ -16,6 +17,7 @@ import com.example.demo.repository.SafetyEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -108,5 +110,71 @@ public class SafetyEventService {
                 .stream()
                 .map(SafetyEventResponseDto::new)
                 .toList();
+    }
+
+    @Transactional
+    public Long createSafetyEventFromImage(Long deviceId, MultipartFile file) {
+        Device device = getDeviceEntity(deviceId);
+
+        AiSafetyImageDetectionResponseDto aiResult = aiAnalysisClient.detectSafetyEventFromImage(file);
+
+        SafetyEventType eventType = convertSafetyEventType(aiResult.getEventType());
+
+        SafetyEvent safetyEvent = SafetyEvent.builder()
+                .device(device)
+                .eventType(eventType)
+                .confidence(aiResult.getConfidence())
+                .imagePath(aiResult.getImagePath())
+                .message(aiResult.getMessage())
+                .resolved(false)
+                .build();
+
+        SafetyEvent savedEvent = safetyEventRepository.save(safetyEvent);
+
+        createYoloSafetyAlert(
+                device,
+                eventType,
+                aiResult.getConfidence(),
+                aiResult.getMessage()
+        );
+
+        return savedEvent.getEventId();
+    }
+
+    private SafetyEventType convertSafetyEventType(String eventType) {
+        try {
+            return SafetyEventType.valueOf(eventType);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return SafetyEventType.SAFETY_OBJECT_DETECTED;
+        }
+    }
+
+    private void createYoloSafetyAlert(
+            Device device,
+            SafetyEventType eventType,
+            Double confidence,
+            String message
+    ) {
+        AlertSeverity severity = confidence != null && confidence >= 0.8
+                ? AlertSeverity.CRITICAL
+                : AlertSeverity.WARNING;
+
+        String alertMessage = String.format(
+                "[%s] YOLO 객체탐지 이벤트 발생: %s / 신뢰도 %.2f - %s",
+                device.getDeviceName(),
+                eventType,
+                confidence != null ? confidence : 0.0,
+                message
+        );
+
+        Alert alert = Alert.builder()
+                .device(device)
+                .alertType(AlertType.SAFETY_EVENT)
+                .severity(severity)
+                .message(alertMessage)
+                .checked(false)
+                .build();
+
+        alertRepository.save(alert);
     }
 }

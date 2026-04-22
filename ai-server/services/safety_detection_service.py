@@ -4,6 +4,9 @@ from models.yolo_detector import YOLODetector
 class SafetyDetectionService:
     """
     안전 이벤트 탐지 서비스
+
+    - detect_safety_event(): 기존 시나리오 기반 테스트 API용
+    - detect_safety_event_from_image(): 실제 YOLO 이미지 탐지 API용
     """
 
     def __init__(self):
@@ -48,30 +51,22 @@ class SafetyDetectionService:
 
         if not detections:
             return {
-                "eventType": "OBSTACLE_DETECTED",
+                "eventType": "SAFETY_OBJECT_DETECTED",
                 "confidence": 0.0,
                 "message": "탐지된 객체가 없습니다.",
                 "imagePath": image_path,
                 "detections": []
             }
 
-        # confidence가 가장 높은 탐지 결과 선택
         top_detection = max(detections, key=lambda item: item["confidence"])
 
         class_name = top_detection["className"]
         confidence = top_detection["confidence"]
 
-        # 1차 구현 규칙:
-        # COCO 기본 모델에서 person이 감지되면 승객 관련 안전 이벤트로 변환
-        if class_name == "person":
-            event_type = "FALL_DETECTED"
-            message = "사람 객체가 감지되었습니다. 승객 안전 이벤트 확인이 필요합니다."
-        else:
-            event_type = "OBSTACLE_DETECTED"
-            message = f"{class_name} 객체가 감지되었습니다. 통행 구역 내 이물질 여부 확인이 필요합니다."
+        message = f"{class_name} 객체가 감지되었습니다. 안전 확인이 필요합니다."
 
         return {
-            "eventType": event_type,
+            "eventType": "SAFETY_OBJECT_DETECTED",
             "confidence": confidence,
             "message": message,
             "imagePath": image_path,

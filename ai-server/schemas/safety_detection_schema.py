@@ -29,7 +29,8 @@ class SafetyImageDetectionResponse(BaseModel):
         "FALL_DETECTED",
         "DOOR_ENTRAPMENT",
         "OBSTACLE_DETECTED",
-        "DANGER_ZONE_ACCESS"
+        "DANGER_ZONE_ACCESS",
+        "SAFETY_OBJECT_DETECTED"
     ]
     confidence: float
     message: str
