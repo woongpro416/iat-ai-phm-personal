@@ -20,3 +20,26 @@ class YOLODetector:
     def detect(self, image_path: str) -> list[dict]:
         results = self.model(image_path)
         result = results[0]
+        
+        detections = []
+        
+        for box in result.boxes:
+            class_id = int(box.cls[0])
+            class_name = result.names[class_id]
+            confidence = float(box.conf[0])
+            
+            xyxy = box.xyxy[0].tolist()
+            
+            detections.append({
+                "classId": class_id,
+                "className" : class_name,
+                "confidence" : round(confidence),
+                "bbox": {
+                    "x1": round(float(xyxy[0]), 2),
+                    "y1": round(float(xyxy[1]), 2),
+                    "x2": round(float(xyxy[2]), 2),
+                    "y2": round(float(xyxy[3]), 2)
+                }
+            })
+            
+        return detections

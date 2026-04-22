@@ -7,3 +7,10 @@ venv/
 __pycache__/
 *.pyc
 .env
+
+# YOLO weights
+*.pt
+ai-server/yolov8n.pt
+
+# User Uploads
+ai-server/uploaded_images/
