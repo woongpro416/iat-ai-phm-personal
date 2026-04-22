@@ -14,3 +14,19 @@ ai-server/yolov8n.pt
 
 # User Uploads
 ai-server/uploaded_images/
+
+# 의존성 패키지 (가장 중요, 용량의 주범)
+node_modules/
+dist/
+
+# 로컬 환경 변수 (보안)
+.env
+.env.local
+.env.*.local
+
+# 로그 및 시스템 파일
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vscode/
+.DS_Store

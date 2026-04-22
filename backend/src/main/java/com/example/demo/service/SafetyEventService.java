@@ -177,4 +177,11 @@ public class SafetyEventService {
 
         alertRepository.save(alert);
     }
+
+    public List<SafetyEventResponseDto> getRecentSafetyEvents() {
+        return safetyEventRepository.findTop5ByOrderByCreatedAtDesc()
+                .stream()
+                .map(SafetyEventResponseDto::new)
+                .toList();
+    }
 }

@@ -5,7 +5,14 @@ import com.example.demo.domain.DeviceStatusLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface DeviceStatusLogRepository extends JpaRepository<DeviceStatusLog, Long> {
+
     List<DeviceStatusLog> findByDevice_DeviceIdOrderByCreatedAtDesc(Long deviceId);
+
+    List<DeviceStatusLog> findTop5ByOrderByCreatedAtDesc();
+
+    Optional<DeviceStatusLog> findTop1ByOrderByCreatedAtDesc();
+
 }

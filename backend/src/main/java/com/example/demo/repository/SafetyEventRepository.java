@@ -10,4 +10,8 @@ public interface SafetyEventRepository extends JpaRepository<SafetyEvent, Long> 
     List<SafetyEvent> findAllByOrderByCreatedAtDesc();
 
     List<SafetyEvent> findByDevice_DeviceIdOrderByCreatedAtDesc(Long deviceId);
+
+    List<SafetyEvent> findTop5ByOrderByCreatedAtDesc();
+
+    long countByResolvedFalse();
 }

@@ -54,4 +54,9 @@ public class SafetyEventController {
         Long eventId = safetyEventService.createSafetyEventFromImage(deviceId, file);
         return ResponseEntity.status(HttpStatus.CREATED).body(eventId);
     }
+
+    @GetMapping("/recent")
+    public ResponseEntity<List<SafetyEventResponseDto>> getRecentSafetyEvents() {
+        return ResponseEntity.ok(safetyEventService.getRecentSafetyEvents());
+    }
 }
