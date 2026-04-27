@@ -11,7 +11,7 @@ public class DashboardRecentResponseDto {
 
     private List<AlertResponseDto> recentAlerts;
 
-    private List<SafetyEventResponseDto> recentSafetyEventes;
+    private List<SafetyEventResponseDto> recentSafetyEvents;
 
-    private List<DeviceStatusResponseDto> recentDeviceStatus;
+    private List<DeviceStatusResponseDto> recentDeviceStatuses;
 }

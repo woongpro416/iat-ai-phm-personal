@@ -1,5 +1,6 @@
 package com.example.demo.client;
 
+import com.example.demo.common.BusinessException;
 import com.example.demo.dto.ai.AiSafetyDetectionRequestDto;
 import com.example.demo.dto.ai.AiSafetyDetectionResponseDto;
 import com.example.demo.dto.request.AiDeviceStatusRequestDto;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
@@ -92,7 +94,11 @@ public class AiAnalysisClient {
                     .body(AiSafetyImageDetectionResponseDto.class);
 
         } catch (IOException e) {
-            throw new IllegalStateException("이미지 파일을 읽는 중 오류가 발생했습니다.", e);
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "이미지 파일을 읽는 중 오류가 발생했습니다."
+            );
         }
+
     }
 }

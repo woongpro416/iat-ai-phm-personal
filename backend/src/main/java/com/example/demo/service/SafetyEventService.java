@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.client.AiAnalysisClient;
+import com.example.demo.common.BusinessException;
 import com.example.demo.domain.Alert;
 import com.example.demo.domain.Device;
 import com.example.demo.domain.SafetyEvent;
@@ -15,6 +16,7 @@ import com.example.demo.repository.AlertRepository;
 import com.example.demo.repository.DeviceRepository;
 import com.example.demo.repository.SafetyEventRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -70,14 +72,20 @@ public class SafetyEventService {
     @Transactional
     public void resolveSafetyEvent(Long eventId) {
         SafetyEvent safetyEvent = safetyEventRepository.findById(eventId)
-                .orElseThrow(() -> new IllegalStateException("존재하지 않는 안전 이벤트입니다. eventId=" + eventId));
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "존재하지 않는 안전 이벤트입니다. eventId=" + eventId
+                ));
 
         safetyEvent.resolve();
     }
 
     private Device getDeviceEntity(Long deviceId) {
         return deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new IllegalStateException("존재하지 않는 장비입니다. deviceId=" + deviceId));
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "존재하지 않는 장비입니다. deviceId=" + deviceId
+                ));
     }
 
     private void createSafetyAlert (
@@ -145,7 +153,10 @@ public class SafetyEventService {
         try {
             return SafetyEventType.valueOf(eventType);
         } catch (IllegalArgumentException | NullPointerException e) {
-            return SafetyEventType.SAFETY_OBJECT_DETECTED;
+            throw new BusinessException(
+                    HttpStatus.BAD_GATEWAY,
+                    "AI 서버가 지원하지 않는 안전 이벤트 유형을 반환했습니다. eventType=" + eventType
+            );
         }
     }
 

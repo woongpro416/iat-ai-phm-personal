@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.client.AiAnalysisClient;
+import com.example.demo.common.BusinessException;
 import com.example.demo.domain.Alert;
 import com.example.demo.domain.Device;
 import com.example.demo.domain.DeviceStatusLog;
@@ -17,6 +18,7 @@ import com.example.demo.repository.AlertRepository;
 import com.example.demo.repository.DeviceRepository;
 import com.example.demo.repository.DeviceStatusLogRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -116,7 +118,10 @@ public class DeviceService {
     @Transactional
     public void checkAlert(Long alertId) {
         Alert alert = alertRepository.findById(alertId)
-                .orElseThrow(() -> new IllegalStateException("존재하지 않는 알립입니다. alertId=" + alertId));
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "존재하지 않는 알림입니다. alertId=" + alertId
+                ));
 
         alert.check();
     }
@@ -125,34 +130,40 @@ public class DeviceService {
     // 내부 공통 : 장비 Entity 조회
     private Device getDeviceEntity(Long deviceId) {
         return deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new IllegalStateException("존재하지 않는 장비입니다. deviceId=" + deviceId));
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "존재하지 않는 장비입니다. deviceId=" + deviceId
+                ));
     }
 
-    // 임시 위험도 계산 로직(추후 FastAPI 또는 AI 모델 결과로 대체 예정)
-    private double calculateRiskScore(Double temperature, Double vibration, Double noise) {
-        if (temperature == null || vibration == null || noise == null) {
-            throw new IllegalArgumentException("온도, 진동, 소음 값을 필수입니다.");
-        }
-
-        double tempScore = temperature * 0.8;
-        double vibrationScore = vibration * 40.0;
-        double noiseScore = noise * 0.3;
-
-        double totalScore = tempScore + vibrationScore + noiseScore;
-
-        return Math.min(100.0, Math.round(totalScore * 10.0) / 10.0);
-    }
-
-    // 위험도 기준 상태 분류
-    private DeviceStatusType decideDeviceStatus(double riskScore) {
-        if (riskScore >= 80) {
-            return DeviceStatusType.DANGER;
-        }
-        if (riskScore >= 50) {
-            return DeviceStatusType.WARNING;
-        }
-        return DeviceStatusType.NORMAL;
-    }
+//    // 임시 위험도 계산 로직(추후 FastAPI 또는 AI 모델 결과로 대체 예정)
+//    private double calculateRiskScore(Double temperature, Double vibration, Double noise) {
+//        if (temperature == null || vibration == null || noise == null) {
+//            throw new BusinessException(
+//                    HttpStatus.BAD_REQUEST,
+//                    "온도, 진동, 소음 값은 필수입니다."
+//            );
+//        }
+//
+//        double tempScore = temperature * 0.8;
+//        double vibrationScore = vibration * 40.0;
+//        double noiseScore = noise * 0.3;
+//
+//        double totalScore = tempScore + vibrationScore + noiseScore;
+//
+//        return Math.min(100.0, Math.round(totalScore * 10.0) / 10.0);
+//    }
+//
+//    // 위험도 기준 상태 분류
+//    private DeviceStatusType decideDeviceStatus(double riskScore) {
+//        if (riskScore >= 80) {
+//            return DeviceStatusType.DANGER;
+//        }
+//        if (riskScore >= 50) {
+//            return DeviceStatusType.WARNING;
+//        }
+//        return DeviceStatusType.NORMAL;
+//    }
 
     //장비 위험 알림 생성
     private void createDeviceRiskAlert(Device device, double riskScore, DeviceStatusType status) {
