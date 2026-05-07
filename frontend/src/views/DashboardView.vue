@@ -1,9 +1,15 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import { dashboardApi } from '../api/dashboardApi'
+import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { dashboardApi } from "../api/dashboardApi";
+import { alertApi } from "../api/alertApi";
+import { safetyEventApi } from "../api/safetyEventApi";
 
-const loading = ref(false)
-const errorMessage = ref('')
+const loading = ref(false);
+const errorMessage = ref("");
+const refreshCountdown = ref(10);
+const autoRefreshing = ref(false);
+
+let refreshTimer = null;
 
 const summary = reactive({
   totalDevices: 0,
@@ -17,57 +23,124 @@ const summary = reactive({
   uncheckedAlerts: 0,
   latestRiskScore: null,
   latestDeviceStatus: null,
-})
+});
 
 const recent = reactive({
   recentAlerts: [],
   recentSafetyEvents: [],
   recentDeviceStatuses: [],
-})
+});
 
 const loadDashboard = async () => {
-  loading.value = true
-  errorMessage.value = ''
+  loading.value = true;
+  errorMessage.value = "";
 
   try {
     const [summaryResponse, recentResponse] = await Promise.all([
       dashboardApi.getSummary(),
       dashboardApi.getRecent(),
-    ])
+    ]);
 
-    Object.assign(summary, summaryResponse.data)
-    Object.assign(recent, recentResponse.data)
+    Object.assign(summary, summaryResponse.data);
+    Object.assign(recent, recentResponse.data);
   } catch (error) {
-    errorMessage.value = '대시보드 데이터를 불러오지 못했습니다.'
-    console.error(error)
+    errorMessage.value = "대시보드 데이터를 불러오지 못했습니다.";
+    console.error(error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
+
+const reloadDashboard = async () => {
+  autoRefreshing.value = false;
+  await loadDashboard();
+  restartAutoRefresh();
+};
+
+const startAutoRefresh = () => {
+  stopAutoRefresh();
+  refreshCountdown.value = 10;
+  autoRefreshing.value = false;
+
+  refreshTimer = window.setInterval(async () => {
+    refreshCountdown.value = Math.max(refreshCountdown.value - 1, 0);
+
+    if (refreshCountdown.value === 0) {
+      autoRefreshing.value = true;
+
+      try {
+        await loadDashboard();
+      } finally {
+        autoRefreshing.value = false;
+        refreshCountdown.value = 10;
+      }
+    }
+  }, 1000);
+};
+
+const restartAutoRefresh = () => {
+  startAutoRefresh();
+};
+
+const stopAutoRefresh = () => {
+  if (refreshTimer) {
+    window.clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+};
+
+const checkRecentAlert = async (alertId) => {
+  errorMessage.value = "";
+
+  try {
+    await alertApi.checkAlert(alertId);
+    await loadDashboard();
+  } catch (error) {
+    errorMessage.value = "알림 확인 처리에 실패했습니다.";
+    console.error(error);
+  }
+};
+
+const resolveRecentSafetyEvent = async (eventId) => {
+  errorMessage.value = "";
+
+  try {
+    await safetyEventApi.resolveSafetyEvent(eventId);
+    await loadDashboard();
+  } catch (error) {
+    errorMessage.value = "안전 이벤트 처리 완료에 실패했습니다.";
+    console.error(error);
+  }
+};
 
 const statusBadgeClass = (status) => {
-  if (status === 'NORMAL') return 'bg-success'
-  if (status === 'WARNING') return 'bg-warning text-dark'
-  if (status === 'DANGER') return 'bg-danger'
-  if (status === 'OFFLINE') return 'bg-secondary'
-  return 'bg-light text-dark'
-}
+  if (status === "NORMAL") return "bg-success";
+  if (status === "WARNING") return "bg-warning text-dark";
+  if (status === "DANGER") return "bg-danger";
+  if (status === "OFFLINE") return "bg-secondary";
+  return "bg-light text-dark";
+};
 
 const severityBadgeClass = (severity) => {
-  if (severity === 'CRITICAL') return 'bg-danger'
-  if (severity === 'WARNING') return 'bg-warning text-dark'
-  if (severity === 'INFO') return 'bg-info text-dark'
-  return 'bg-secondary'
-}
+  if (severity === "CRITICAL") return "bg-danger";
+  if (severity === "WARNING") return "bg-warning text-dark";
+  if (severity === "INFO") return "bg-info text-dark";
+  return "bg-secondary";
+};
 
 const formatDate = (dateText) => {
-  if (!dateText) return '-'
-  return dateText.replace('T', ' ').slice(0, 19)
-}
+  if (!dateText) return "-";
+  return dateText.replace("T", " ").slice(0, 19);
+};
 
 onMounted(() => {
-  loadDashboard()
-})
+  loadDashboard();
+  startAutoRefresh();
+});
+
+onBeforeUnmount(() => {
+  stopAutoRefresh();
+});
 </script>
 
 <template>
@@ -80,9 +153,13 @@ onMounted(() => {
         </p>
       </div>
 
-      <button class="btn btn-primary" @click="loadDashboard">
-        새로고침
-      </button>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-light text-dark border">
+          {{ autoRefreshing ? "갱신중" : `자동 갱신 ${refreshCountdown}초` }}
+        </span>
+
+        <button class="btn btn-primary" @click="reloadDashboard">새로고침</button>
+      </div>
     </div>
 
     <div v-if="loading" class="alert alert-info">
@@ -134,10 +211,13 @@ onMounted(() => {
             <div class="card-body">
               <p class="text-muted mb-1">최근 위험도</p>
               <h3 class="fw-bold mb-0">
-                {{ summary.latestRiskScore ?? '-' }}
+                {{ summary.latestRiskScore ?? "-" }}
               </h3>
-              <span class="badge mt-2" :class="statusBadgeClass(summary.latestDeviceStatus)">
-                {{ summary.latestDeviceStatus ?? 'NO DATA' }}
+              <span
+                class="badge mt-2"
+                :class="statusBadgeClass(summary.latestDeviceStatus)"
+              >
+                {{ summary.latestDeviceStatus ?? "NO DATA" }}
               </span>
             </div>
           </div>
@@ -156,7 +236,9 @@ onMounted(() => {
           <div class="card shadow-sm">
             <div class="card-body">
               <p class="text-muted mb-1">미처리 안전 이벤트</p>
-              <h3 class="fw-bold text-danger mb-0">{{ summary.unresolvedSafetyEvents }}</h3>
+              <h3 class="fw-bold text-danger mb-0">
+                {{ summary.unresolvedSafetyEvents }}
+              </h3>
             </div>
           </div>
         </div>
@@ -184,6 +266,15 @@ onMounted(() => {
                 </div>
                 <p class="mb-1 small">{{ alert.message }}</p>
                 <small class="text-muted">{{ formatDate(alert.createdAt) }}</small>
+                <div class="mt-2">
+                  <button
+                    class="btn btn-sm btn-outline-success"
+                    :disabled="alert.checked"
+                    @click="checkRecentAlert(alert.alertId)"
+                  >
+                    {{ alert.checked ? "확인 완료" : "확인" }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -204,26 +295,36 @@ onMounted(() => {
               >
                 <div class="d-flex justify-content-between">
                   <strong>{{ event.eventType }}</strong>
-                  <span class="badge" :class="event.resolved ? 'bg-success' : 'bg-danger'">
-                    {{ event.resolved ? '처리 완료' : '미처리' }}
+                  <span
+                    class="badge"
+                    :class="event.resolved ? 'bg-success' : 'bg-danger'"
+                  >
+                    {{ event.resolved ? "처리 완료" : "미처리" }}
                   </span>
                 </div>
 
                 <p class="mb-1 small">{{ event.message }}</p>
-                <p class="mb-1 small text-muted">
-                  신뢰도: {{ event.confidence }}
-                </p>
+                <p class="mb-1 small text-muted">신뢰도: {{ event.confidence }}</p>
 
                 <img
                   v-if="event.imageUrl"
                   :src="event.imageUrl"
                   class="img-fluid rounded border mt-2"
-                  style="max-height: 180px; object-fit: cover;"
+                  style="max-height: 180px; object-fit: cover"
                   alt="탐지 이미지"
                 />
 
                 <div>
                   <small class="text-muted">{{ formatDate(event.createdAt) }}</small>
+                  <div class="mt-2">
+                    <button
+                      class="btn btn-sm btn-outline-success"
+                      :disabled="event.resolved"
+                      @click="resolveRecentSafetyEvent(event.eventId)"
+                    >
+                      {{ event.resolved ? "완료됨" : "처리 완료" }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -268,10 +369,7 @@ onMounted(() => {
                 </tbody>
               </table>
 
-              <div
-                v-if="recent.recentDeviceStatuses.length === 0"
-                class="text-muted"
-              >
+              <div v-if="recent.recentDeviceStatuses.length === 0" class="text-muted">
                 최근 장비 상태 로그가 없습니다.
               </div>
             </div>
@@ -285,4 +383,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
