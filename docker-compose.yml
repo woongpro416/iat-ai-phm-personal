@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: iat-ai-phm-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: iat-ai-phm-postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    volumes:
+      - iat_ai_phm_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d iat-ai-phm-postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ai-server:
+    build:
+      context: ./ai-server
+      dockerfile: Dockerfile
+    container_name: iat-ai-server
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-server/uploaded_images:/app/uploaded_images
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iat-backend
+    restart: always
+    ports:
+      - "8402:8402"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-server:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/iat-ai-phm-postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 1234
+      AI_SERVER_URL: http://ai-server:8000
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iat-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  iat_ai_phm_data:
