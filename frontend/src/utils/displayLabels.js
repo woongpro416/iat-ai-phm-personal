@@ -22,6 +22,7 @@ const eventTypeLabels = {
   DOOR_STUCK: "출입문 끼임 위험",
   DANGER_ZONE: "위험 구역 접근",
   DANGER_ZONE_ACCESS: "위험 구역 접근",
+  SAFETY_OBJECT_DETECTED: "안전 객체 탐지",
 };
 
 const alertTypeLabels = {

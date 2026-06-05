@@ -8,6 +8,8 @@ AI 기반 무인 셔틀 장비 상태 모니터링 및 실시간 안전 관제 �
 
 - [프로젝트 문서 초안](./docs/project-documentation-draft.md)
 - [대시보드 점검 체크리스트](./docs/dashboard-checklist.md)
+- [트러블슈팅 가이드](./docs/troubleshooting.md)
+- [구현 학습 노트](./study/today_implementation_study_notes.md)
 
 ## 주요 실행 URL
 

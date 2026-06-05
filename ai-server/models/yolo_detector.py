@@ -33,7 +33,7 @@ class YOLODetector:
             detections.append({
                 "classId": class_id,
                 "className" : class_name,
-                "confidence" : round(confidence),
+                "confidence" : round(confidence, 4),
                 "bbox": {
                     "x1": round(float(xyxy[0]), 2),
                     "y1": round(float(xyxy[1]), 2),

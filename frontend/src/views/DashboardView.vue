@@ -526,11 +526,11 @@ onBeforeUnmount(() => {
                 <p class="mb-1 small text-muted">신뢰도 {{ event.confidence }}</p>
 
                 <img
-                  v-if="event.imageUrl"
-                  :src="event.imageUrl"
+                  v-if="event.resultImageUrl || event.imageUrl"
+                  :src="event.resultImageUrl || event.imageUrl"
                   class="img-fluid rounded border mt-2"
                   style="max-height: 180px; object-fit: cover"
-                  alt="탐지 이미지"
+                  alt="안전 이벤트 분석 이미지"
                 />
 
                 <div>
@@ -564,6 +564,8 @@ onBeforeUnmount(() => {
                     <th><span class="metric-mark">dB</span> 소음</th>
                     <th><span class="metric-mark">%</span> 위험도</th>
                     <th>상태</th>
+                    <th>PHM 모델</th>
+                    <th>권장 조치</th>
                     <th>시간</th>
                   </tr>
                 </thead>
@@ -582,6 +584,10 @@ onBeforeUnmount(() => {
                       <span class="badge" :class="statusBadgeClass(status.status)">
                         {{ deviceStatusLabel(status.status) }}
                       </span>
+                    </td>
+                    <td class="small text-muted">{{ status.modelVersion || "-" }}</td>
+                    <td class="dashboard-recommendation-cell">
+                      {{ status.recommendation || "-" }}
                     </td>
                     <td>{{ formatDate(status.createdAt) }}</td>
                   </tr>
@@ -617,5 +623,12 @@ onBeforeUnmount(() => {
   color: #495057;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.dashboard-recommendation-cell {
+  min-width: 240px;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 </style>

@@ -32,6 +32,8 @@
 - [ ] 자동 갱신 후 스크롤 위치 유지
 - [ ] 최근 알림 확인 버튼 동작
 - [ ] 최근 안전 이벤트 처리 완료 버튼 동작
+- [ ] Safety Events 상세 버튼 동작
+- [ ] Alerts 상세 버튼 동작
 
 ## 화면 확인
 
@@ -39,3 +41,7 @@
 - [ ] SafetyEventView 테이블 헤더/버튼 줄바꿈 없음
 - [ ] AlertView 미확인/확인 완료 탭 표시
 - [ ] DeviceStatusView 단위 표시 확인
+- [ ] Safety Events 상세 모달에서 원본/분석 이미지 표시
+- [ ] Safety Events 상세 모달에서 detection class/confidence/bbox 표시
+- [ ] Alerts 상세 모달에서 원본 메시지와 확인 시간 표시
+- [ ] DeviceStatusView에서 PHM 모델 버전, 분석 근거, 권장 조치 표시

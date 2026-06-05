@@ -134,6 +134,29 @@ const statusBadgeClass = (status) => {
   return "bg-light text-dark";
 };
 
+const thresholdViolationLabels = {
+  TEMPERATURE_WARNING: "온도 주의",
+  TEMPERATURE_DANGER: "온도 위험",
+  VIBRATION_WARNING: "진동 주의",
+  VIBRATION_DANGER: "진동 위험",
+  NOISE_WARNING: "소음 주의",
+  NOISE_DANGER: "소음 위험",
+};
+
+const formatThresholdViolations = (thresholdViolations) => {
+  if (!thresholdViolations) return "기준 초과 없음";
+
+  return thresholdViolations
+    .split(",")
+    .filter(Boolean)
+    .map((violation) => thresholdViolationLabels[violation] || violation)
+    .join(", ");
+};
+
+const formatScore = (score) => {
+  return score === null || score === undefined ? "-" : score;
+};
+
 const formatDate = (dateText) => {
   if (!dateText) return "-";
   return dateText.replace("T", " ").slice(0, 19);
@@ -304,6 +327,9 @@ onMounted(() => {
                 <th><span class="metric-mark">dB</span> 소음</th>
                 <th><span class="metric-mark">%</span> 위험도</th>
                 <th>판정 상태</th>
+                <th>PHM 모델</th>
+                <th>분석 근거</th>
+                <th>권장 조치</th>
                 <th>등록 시간</th>
               </tr>
             </thead>
@@ -314,12 +340,28 @@ onMounted(() => {
                 <td>{{ log.temperature }}℃</td>
                 <td>{{ log.vibration }}Hz</td>
                 <td>{{ log.noise }}dB</td>
-                <td>{{ log.riskScore }}%</td>
+                <td class="risk-score-cell">
+                  <div class="fw-bold">{{ log.riskScore }}%</div>
+                  <div class="score-breakdown">
+                    온도 {{ formatScore(log.temperatureScore) }} /
+                    진동 {{ formatScore(log.vibrationScore) }} /
+                    소음 {{ formatScore(log.noiseScore) }}
+                  </div>
+                </td>
                 <td>
                   <span class="badge" :class="statusBadgeClass(log.status)">
                     {{ deviceStatusLabel(log.status) }}
                   </span>
                 </td>
+                <td class="model-cell">
+                  <div>{{ log.modelVersion || "-" }}</div>
+                  <small class="text-muted">{{ log.predictionHorizon || "-" }}</small>
+                </td>
+                <td class="analysis-cell">
+                  <div>{{ formatThresholdViolations(log.thresholdViolations) }}</div>
+                  <small class="text-muted">{{ log.analysisMessage || "-" }}</small>
+                </td>
+                <td class="recommendation-cell">{{ log.recommendation || "-" }}</td>
                 <td>{{ formatDate(log.createdAt) }}</td>
               </tr>
             </tbody>
@@ -344,5 +386,35 @@ onMounted(() => {
   color: #495057;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.risk-score-cell {
+  min-width: 150px;
+}
+
+.score-breakdown {
+  color: #6c757d;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.model-cell {
+  min-width: 160px;
+  font-size: 0.86rem;
+}
+
+.analysis-cell {
+  min-width: 260px;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.recommendation-cell {
+  min-width: 280px;
+  line-height: 1.4;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 </style>

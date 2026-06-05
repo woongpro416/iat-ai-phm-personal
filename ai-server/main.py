@@ -22,7 +22,11 @@ app = FastAPI(
 )
 
 UPLOAD_DIR = Path("uploaded_images")
+ORIGINAL_IMAGE_DIR = UPLOAD_DIR / "original"
+RESULT_IMAGE_DIR = UPLOAD_DIR / "results"
 UPLOAD_DIR.mkdir(exist_ok=True)
+ORIGINAL_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+RESULT_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/images", StaticFiles(directory="uploaded_images"), name="images")
 
@@ -59,15 +63,16 @@ def detect_safety_event(request: SafetyDetectionRequest):
 
 @app.post("/detect/safety/image", response_model=SafetyImageDetectionResponse)
 async def detect_safety_event_from_image(file: UploadFile = File(...)):
-    file_extension = os.path.splitext(file.filename)[1]
+    file_extension = os.path.splitext(file.filename)[1] or ".jpg"
     saved_filename = f"{uuid4()}{file_extension}"
-    saved_path = UPLOAD_DIR / saved_filename
+    saved_path = ORIGINAL_IMAGE_DIR / saved_filename
 
     with open(saved_path, "wb") as buffer:
         buffer.write(await file.read())
 
     result = safety_detection_service.detect_safety_event_from_image(
-        image_path=str(saved_path)
+        image_path=str(saved_path),
+        result_dir=str(RESULT_IMAGE_DIR)
     )
 
     return result

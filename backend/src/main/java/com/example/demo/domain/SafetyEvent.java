@@ -32,8 +32,14 @@ public class SafetyEvent {
     @Column(length = 500)
     private String imagePath;
 
+    @Column(length = 500)
+    private String resultImagePath;
+
     @Column(nullable = false, length = 500)
     private String message;
+
+    @Column(length = 2000)
+    private String detectionSummary;
 
     @Column(nullable = false)
     private Boolean resolved;

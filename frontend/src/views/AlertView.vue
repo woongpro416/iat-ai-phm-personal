@@ -14,6 +14,7 @@ const activeTab = ref("unchecked");
 const errorMessage = ref("");
 const toastMessage = ref("");
 const showToast = ref(false);
+const selectedAlert = ref(null);
 
 const uncheckedAlerts = computed(() => {
   return alerts.value.filter((alert) => !alert.checked);
@@ -65,6 +66,25 @@ const checkAlert = async (alertId) => {
   } finally {
     processingAlertId.value = null;
   }
+};
+
+const checkSelectedAlert = async () => {
+  if (!selectedAlert.value) return;
+
+  const alertId = selectedAlert.value.alertId;
+  await checkAlert(alertId);
+
+  if (!errorMessage.value) {
+    closeAlertDetail();
+  }
+};
+
+const openAlertDetail = (alert) => {
+  selectedAlert.value = alert;
+};
+
+const closeAlertDetail = () => {
+  selectedAlert.value = null;
 };
 
 const severityBadgeClass = (severity) => {
@@ -169,6 +189,12 @@ onMounted(() => {
                 <td class="text-muted">{{ formatDate(alert.createdAt) }}</td>
                 <td>
                   <button
+                    class="btn btn-sm btn-outline-primary me-1"
+                    @click="openAlertDetail(alert)"
+                  >
+                    상세
+                  </button>
+                  <button
                     class="btn btn-sm btn-outline-success"
                     :disabled="alert.checked || processingAlertId === alert.alertId"
                     @click="checkAlert(alert.alertId)"
@@ -179,6 +205,86 @@ onMounted(() => {
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="selectedAlert"
+      class="modal-backdrop-custom"
+      role="presentation"
+      @click.self="closeAlertDetail"
+    >
+      <div class="modal-dialog-custom" role="dialog" aria-modal="true" aria-labelledby="alert-detail-title">
+        <div class="modal-header-custom">
+          <div>
+            <h5 id="alert-detail-title" class="fw-bold mb-1">
+              알림 #{{ selectedAlert.alertId }}
+            </h5>
+            <p class="text-muted mb-0">
+              {{ selectedAlert.deviceName || "대상 장비 없음" }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="닫기"
+            @click="closeAlertDetail"
+          ></button>
+        </div>
+
+        <div class="modal-body-custom">
+          <div class="detail-grid mb-3">
+            <div>
+              <span class="detail-label">알림 유형</span>
+              <strong>{{ alertTypeLabel(selectedAlert.alertType) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">중요도</span>
+              <span class="badge" :class="severityBadgeClass(selectedAlert.severity)">
+                {{ severityLabel(selectedAlert.severity) }}
+              </span>
+            </div>
+            <div>
+              <span class="detail-label">확인 상태</span>
+              <span class="badge" :class="selectedAlert.checked ? 'bg-success' : 'bg-secondary'">
+                {{ selectedAlert.checked ? "확인 완료" : "미확인" }}
+              </span>
+            </div>
+            <div>
+              <span class="detail-label">발생 시간</span>
+              <strong>{{ formatDate(selectedAlert.createdAt) }}</strong>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <span class="detail-label">운영자 메시지</span>
+            <p class="mb-0">{{ readableAlertMessage(selectedAlert) }}</p>
+          </div>
+
+          <div class="mb-3">
+            <span class="detail-label">원본 메시지</span>
+            <p class="raw-message mb-0">{{ selectedAlert.message || "-" }}</p>
+          </div>
+
+          <div>
+            <span class="detail-label">확인 시간</span>
+            <p class="mb-0">{{ formatDate(selectedAlert.checkedAt) }}</p>
+          </div>
+        </div>
+
+        <div class="modal-footer-custom">
+          <button class="btn btn-outline-secondary" @click="closeAlertDetail">
+            닫기
+          </button>
+          <button
+            class="btn btn-success"
+            :disabled="selectedAlert.checked || processingAlertId === selectedAlert.alertId"
+            @click="checkSelectedAlert"
+          >
+            {{ selectedAlert.checked ? "확인 완료" : "확인 처리" }}
+          </button>
         </div>
       </div>
     </div>
@@ -246,7 +352,7 @@ onMounted(() => {
 }
 
 .col-action {
-  width: 90px;
+  width: 150px;
 }
 
 .message-cell {
@@ -255,5 +361,73 @@ onMounted(() => {
   line-height: 1.45;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(33, 37, 41, 0.55);
+}
+
+.modal-dialog-custom {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+}
+
+.modal-header-custom,
+.modal-footer-custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer-custom {
+  justify-content: flex-end;
+  border-top: 1px solid #dee2e6;
+  border-bottom: 0;
+}
+
+.modal-body-custom {
+  padding: 20px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #6c757d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.raw-message {
+  padding: 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #f8f9fa;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

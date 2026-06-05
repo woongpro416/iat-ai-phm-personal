@@ -38,6 +38,27 @@ public class DeviceStatusLog {
     @Column(nullable = false, length = 20)
     private DeviceStatusType status;
 
+    @Column(length = 80)
+    private String modelVersion;
+
+    @Column(length = 50)
+    private String predictionHorizon;
+
+    @Column(length = 700)
+    private String analysisMessage;
+
+    @Column(length = 700)
+    private String recommendation;
+
+    @Column(length = 500)
+    private String thresholdViolations;
+
+    private Double temperatureScore;
+
+    private Double vibrationScore;
+
+    private Double noiseScore;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

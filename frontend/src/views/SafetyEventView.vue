@@ -14,6 +14,7 @@ const previewUrl = ref("");
 const loading = ref(false);
 const uploading = ref(false);
 const errorMessage = ref("");
+const selectedEvent = ref(null);
 
 const canUpload = computed(() => {
   return selectedDeviceId.value && selectedFile.value;
@@ -94,6 +95,33 @@ const resolveEvent = async (eventId) => {
   }
 };
 
+const resolveSelectedEvent = async () => {
+  if (!selectedEvent.value) return;
+
+  const eventId = selectedEvent.value.eventId;
+  await resolveEvent(eventId);
+
+  if (!errorMessage.value) {
+    closeEventDetail();
+  }
+};
+
+const openEventDetail = (event) => {
+  selectedEvent.value = event;
+};
+
+const closeEventDetail = () => {
+  selectedEvent.value = null;
+};
+
+const detectionSummaryLines = (event) => {
+  if (!event?.detectionSummary) return ["탐지 상세 정보가 없습니다."];
+
+  return event.detectionSummary
+    .split("\n")
+    .filter(Boolean);
+};
+
 const formatDate = (dateText) => {
   if (!dateText) return "-";
   return dateText.replace("T", " ").slice(0, 19);
@@ -101,6 +129,19 @@ const formatDate = (dateText) => {
 
 const resolvedBadgeClass = (resolved) => {
   return resolved ? "bg-success" : "bg-danger";
+};
+
+const eventImages = (event) => {
+  return [
+    {
+      label: "원본",
+      url: event.imageUrl,
+    },
+    {
+      label: "분석",
+      url: event.resultImageUrl,
+    },
+  ].filter((image) => image.url);
 };
 
 onMounted(() => {
@@ -219,18 +260,35 @@ onMounted(() => {
                     {{ event.resolved ? "처리 완료" : "미처리" }}
                   </span>
                 </td>
-                <td>
-                  <img
-                    v-if="event.imageUrl"
-                    :src="event.imageUrl"
-                    class="rounded border"
-                    style="width: 96px; height: 64px; object-fit: cover;"
-                    alt="안전 이벤트 이미지"
-                  />
+                <td class="image-cell">
+                  <div v-if="eventImages(event).length" class="event-image-list">
+                    <a
+                      v-for="image in eventImages(event)"
+                      :key="`${event.eventId}-${image.label}`"
+                      :href="image.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="event-image-link"
+                      :title="`${image.label} 이미지 새 창으로 보기`"
+                    >
+                      <img
+                        :src="image.url"
+                        class="event-image-thumb"
+                        :alt="`${image.label} 안전 이벤트 이미지`"
+                      />
+                      <span class="event-image-label">{{ image.label }}</span>
+                    </a>
+                  </div>
                   <span v-else class="text-muted">-</span>
                 </td>
                 <td>{{ formatDate(event.createdAt) }}</td>
                 <td class="action-cell">
+                  <button
+                    class="btn btn-sm btn-outline-primary action-button me-1"
+                    @click="openEventDetail(event)"
+                  >
+                    상세
+                  </button>
                   <button
                     class="btn btn-sm btn-outline-success action-button"
                     :disabled="event.resolved"
@@ -242,6 +300,103 @@ onMounted(() => {
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="selectedEvent"
+      class="modal-backdrop-custom"
+      role="presentation"
+      @click.self="closeEventDetail"
+    >
+      <div class="modal-dialog-custom" role="dialog" aria-modal="true" aria-labelledby="event-detail-title">
+        <div class="modal-header-custom">
+          <div>
+            <h5 id="event-detail-title" class="fw-bold mb-1">
+              안전 이벤트 #{{ selectedEvent.eventId }}
+            </h5>
+            <p class="text-muted mb-0">
+              {{ selectedEvent.deviceName }} / {{ formatDate(selectedEvent.createdAt) }}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="닫기"
+            @click="closeEventDetail"
+          ></button>
+        </div>
+
+        <div class="modal-body-custom">
+          <div class="detail-grid mb-3">
+            <div>
+              <span class="detail-label">이벤트 유형</span>
+              <strong>{{ eventTypeLabel(selectedEvent.eventType) }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">신뢰도</span>
+              <strong>{{ selectedEvent.confidence }}</strong>
+            </div>
+            <div>
+              <span class="detail-label">처리 상태</span>
+              <span class="badge" :class="resolvedBadgeClass(selectedEvent.resolved)">
+                {{ selectedEvent.resolved ? "처리 완료" : "미처리" }}
+              </span>
+            </div>
+            <div>
+              <span class="detail-label">처리 시간</span>
+              <strong>{{ formatDate(selectedEvent.resolvedAt) }}</strong>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <span class="detail-label">원본 메시지</span>
+            <p class="mb-0">{{ selectedEvent.message || "-" }}</p>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div
+              v-for="image in eventImages(selectedEvent)"
+              :key="`detail-${image.label}`"
+              class="col-md-6"
+            >
+              <span class="detail-label">{{ image.label }} 이미지</span>
+              <a :href="image.url" target="_blank" rel="noopener noreferrer">
+                <img
+                  :src="image.url"
+                  class="detail-image"
+                  :alt="`${image.label} 안전 이벤트 이미지`"
+                />
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <span class="detail-label">탐지 상세</span>
+            <ul class="detection-list">
+              <li
+                v-for="line in detectionSummaryLines(selectedEvent)"
+                :key="line"
+              >
+                {{ line }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="modal-footer-custom">
+          <button class="btn btn-outline-secondary" @click="closeEventDetail">
+            닫기
+          </button>
+          <button
+            class="btn btn-success"
+            :disabled="selectedEvent.resolved"
+            @click="resolveSelectedEvent"
+          >
+            {{ selectedEvent.resolved ? "완료됨" : "처리 완료" }}
+          </button>
         </div>
       </div>
     </div>
@@ -259,11 +414,11 @@ onMounted(() => {
 }
 
 .action-cell {
-  width: 112px;
+  width: 184px;
 }
 
 .action-button {
-  min-width: 84px;
+  min-width: 68px;
 }
 
 .event-message-cell {
@@ -271,5 +426,115 @@ onMounted(() => {
   line-height: 1.45;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+
+.image-cell {
+  min-width: 168px;
+}
+
+.event-image-list {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.event-image-link {
+  display: grid;
+  gap: 4px;
+  color: inherit;
+  text-align: center;
+  text-decoration: none;
+}
+
+.event-image-thumb {
+  width: 72px;
+  height: 52px;
+  object-fit: cover;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.event-image-label {
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(33, 37, 41, 0.55);
+}
+
+.modal-dialog-custom {
+  width: min(920px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+}
+
+.modal-header-custom,
+.modal-footer-custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer-custom {
+  justify-content: flex-end;
+  border-top: 1px solid #dee2e6;
+  border-bottom: 0;
+}
+
+.modal-body-custom {
+  padding: 20px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #6c757d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.detail-image {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #f8f9fa;
+}
+
+.detection-list {
+  display: grid;
+  gap: 6px;
+  padding-left: 18px;
+  margin-bottom: 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

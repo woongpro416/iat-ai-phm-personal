@@ -31,11 +31,13 @@ public class AiAnalysisClient {
     private String aiServerUrl;
 
     public AiDeviceStatusResponseDto predictDeviceStatus(
+            Long deviceId,
             Double temperature,
             Double vibration,
             Double noise
     ) {
         AiDeviceStatusRequestDto requestDto = new AiDeviceStatusRequestDto(
+                deviceId,
                 temperature,
                 vibration,
                 noise

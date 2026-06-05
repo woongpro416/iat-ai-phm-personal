@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 @AllArgsConstructor
 public class AiDeviceStatusRequestDto {
 
+    private Long deviceId;
+
     private Double temperature;
 
     private Double vibration;

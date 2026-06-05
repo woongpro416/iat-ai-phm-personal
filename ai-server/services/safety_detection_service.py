@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import cv2
+
 from models.yolo_detector import YOLODetector
 
 
@@ -46,8 +50,13 @@ class SafetyDetectionService:
             "imagePath": None
         }
 
-    def detect_safety_event_from_image(self, image_path: str) -> dict:
+    def detect_safety_event_from_image(self, image_path: str, result_dir: str) -> dict:
         detections = self.detector.detect(image_path)
+        result_image_path = self._save_result_image(
+            image_path=image_path,
+            result_dir=result_dir,
+            detections=detections
+        )
 
         if not detections:
             return {
@@ -55,6 +64,7 @@ class SafetyDetectionService:
                 "confidence": 0.0,
                 "message": "탐지된 객체가 없습니다.",
                 "imagePath": image_path,
+                "resultImagePath": result_image_path,
                 "detections": []
             }
 
@@ -70,5 +80,54 @@ class SafetyDetectionService:
             "confidence": confidence,
             "message": message,
             "imagePath": image_path,
+            "resultImagePath": result_image_path,
             "detections": detections
         }
+
+    def _save_result_image(self, image_path: str, result_dir: str, detections: list[dict]) -> str | None:
+        image = cv2.imread(image_path)
+
+        if image is None:
+            return None
+
+        for detection in detections:
+            bbox = detection["bbox"]
+            x1 = int(bbox["x1"])
+            y1 = int(bbox["y1"])
+            x2 = int(bbox["x2"])
+            y2 = int(bbox["y2"])
+
+            label = f'{detection["className"]} {detection["confidence"]:.2f}'
+
+            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 180, 255), 2)
+            cv2.putText(
+                image,
+                label,
+                (x1, max(y1 - 8, 20)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 180, 255),
+                2,
+                cv2.LINE_AA
+            )
+
+        if not detections:
+            cv2.putText(
+                image,
+                "No detections",
+                (24, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (0, 180, 255),
+                2,
+                cv2.LINE_AA
+            )
+
+        source_path = Path(image_path)
+        result_path = Path(result_dir) / f"{source_path.stem}_bbox{source_path.suffix}"
+        saved = cv2.imwrite(str(result_path), image)
+
+        if not saved:
+            return None
+
+        return str(result_path)

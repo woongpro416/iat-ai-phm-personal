@@ -8,6 +8,7 @@ import com.example.demo.domain.SafetyEvent;
 import com.example.demo.domain.enums.AlertSeverity;
 import com.example.demo.domain.enums.AlertType;
 import com.example.demo.domain.enums.SafetyEventType;
+import com.example.demo.dto.ai.AiYoloDetectionBoxDto;
 import com.example.demo.dto.ai.AiSafetyDetectionResponseDto;
 import com.example.demo.dto.request.SafetyEventCreateRequestDto;
 import com.example.demo.dto.response.AiSafetyImageDetectionResponseDto;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -99,7 +101,9 @@ public class SafetyEventService {
                 .eventType(eventType)
                 .confidence(aiResult.getConfidence())
                 .imagePath(aiResult.getImagePath())
+                .resultImagePath(aiResult.getResultImagePath())
                 .message(aiResult.getMessage())
+                .detectionSummary(formatDetectionSummary(aiResult.getDetections()))
                 .resolved(false)
                 .build();
 
@@ -193,5 +197,39 @@ public class SafetyEventService {
                 .build();
 
         alertRepository.save(alert);
+    }
+
+    private String formatDetectionSummary(List<AiYoloDetectionBoxDto> detections) {
+        if (detections == null || detections.isEmpty()) {
+            return "탐지된 객체가 없습니다.";
+        }
+
+        return detections.stream()
+                .map(this::formatDetectionBox)
+                .toList()
+                .stream()
+                .reduce((first, second) -> first + "\n" + second)
+                .orElse("");
+    }
+
+    private String formatDetectionBox(AiYoloDetectionBoxDto detection) {
+        Map<String, Double> bbox = detection.getBbox();
+
+        String bboxText = bbox == null
+                ? "bbox=-"
+                : String.format(
+                "bbox[x1=%.2f, y1=%.2f, x2=%.2f, y2=%.2f]",
+                bbox.getOrDefault("x1", 0.0),
+                bbox.getOrDefault("y1", 0.0),
+                bbox.getOrDefault("x2", 0.0),
+                bbox.getOrDefault("y2", 0.0)
+        );
+
+        return String.format(
+                "%s / confidence %.4f / %s",
+                detection.getClassName(),
+                detection.getConfidence() != null ? detection.getConfidence() : 0.0,
+                bboxText
+        );
     }
 }

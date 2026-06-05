@@ -18,5 +18,7 @@ public class AiSafetyImageDetectionResponseDto {
 
     private String imagePath;
 
+    private String resultImagePath;
+
     private List<AiYoloDetectionBoxDto> detections;
 }

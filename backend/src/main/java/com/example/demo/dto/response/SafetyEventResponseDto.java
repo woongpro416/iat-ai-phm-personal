@@ -22,7 +22,13 @@ public class SafetyEventResponseDto {
 
     private String imageUrl;
 
+    private String resultImagePath;
+
+    private String resultImageUrl;
+
     private String message;
+
+    private String detectionSummary;
 
     private Boolean resolved;
 
@@ -38,7 +44,10 @@ public class SafetyEventResponseDto {
         this.confidence = safetyEvent.getConfidence();
         this.imagePath = safetyEvent.getImagePath();
         this.imageUrl = createImageUrl(safetyEvent.getImagePath());
+        this.resultImagePath = safetyEvent.getResultImagePath();
+        this.resultImageUrl = createImageUrl(safetyEvent.getResultImagePath());
         this.message = safetyEvent.getMessage();
+        this.detectionSummary = safetyEvent.getDetectionSummary();
         this.resolved = safetyEvent.getResolved();
         this.createdAt = safetyEvent.getCreatedAt();
         this.resolvedAt = safetyEvent.getResolvedAt();
@@ -48,8 +57,16 @@ public class SafetyEventResponseDto {
         if (imagePath == null || imagePath.isBlank()) {
             return null;
         }
+
         String normalizedPath = imagePath.replace("\\", "/");
-        String filename = normalizedPath.substring(normalizedPath.lastIndexOf("/") +1);
+        String uploadRoot = "uploaded_images/";
+
+        if (normalizedPath.contains(uploadRoot)) {
+            String relativePath = normalizedPath.substring(normalizedPath.indexOf(uploadRoot) + uploadRoot.length());
+            return "http://localhost:8000/images/" + relativePath;
+        }
+
+        String filename = normalizedPath.substring(normalizedPath.lastIndexOf("/") + 1);
 
         return "http://localhost:8000/images/" + filename;
     }

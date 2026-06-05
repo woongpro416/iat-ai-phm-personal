@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +64,7 @@ public class DeviceService {
         Device device = getDeviceEntity(requestDto.getDeviceId());
 
         AiDeviceStatusResponseDto aiResult = aiAnalysisClient.predictDeviceStatus(
+                requestDto.getDeviceId(),
                 requestDto.getTemperature(),
                 requestDto.getVibration(),
                 requestDto.getNoise()
@@ -78,6 +80,14 @@ public class DeviceService {
                 .noise(requestDto.getNoise())
                 .riskScore(riskScore)
                 .status(status)
+                .modelVersion(aiResult.getModelVersion())
+                .predictionHorizon(aiResult.getPredictionHorizon())
+                .analysisMessage(aiResult.getMessage())
+                .recommendation(aiResult.getRecommendation())
+                .thresholdViolations(formatThresholdViolations(aiResult.getThresholdViolations()))
+                .temperatureScore(getContributionScore(aiResult.getContributionScores(), "temperature"))
+                .vibrationScore(getContributionScore(aiResult.getContributionScores(), "vibration"))
+                .noiseScore(getContributionScore(aiResult.getContributionScores(), "noise"))
                 .build();
 
         DeviceStatusLog savedLog = deviceStatusLogRepository.save(statusLog);
@@ -147,5 +157,21 @@ public class DeviceService {
                 .build();
 
         alertRepository.save(alert);
+    }
+
+    private String formatThresholdViolations(List<String> thresholdViolations) {
+        if (thresholdViolations == null || thresholdViolations.isEmpty()) {
+            return "";
+        }
+
+        return String.join(",", thresholdViolations);
+    }
+
+    private Double getContributionScore(Map<String, Double> contributionScores, String featureName) {
+        if (contributionScores == null) {
+            return null;
+        }
+
+        return contributionScores.get(featureName);
     }
 }

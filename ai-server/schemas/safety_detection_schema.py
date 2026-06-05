@@ -35,4 +35,5 @@ class SafetyImageDetectionResponse(BaseModel):
     confidence: float
     message: str
     imagePath: str | None = None
+    resultImagePath: str | None = None
     detections: list[YoloDetectionBox]
