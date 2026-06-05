@@ -1,53 +1,87 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { alertApi } from '../api/alertApi'
+import { computed, onMounted, ref } from "vue";
+import { alertApi } from "../api/alertApi";
+import {
+  alertTypeLabel,
+  readableAlertMessage,
+  severityLabel,
+} from "../utils/displayLabels";
 
-const alerts = ref([])
-const loading = ref(false)
-const errorMessage = ref('')
+const alerts = ref([]);
+const loading = ref(false);
+const processingAlertId = ref(null);
+const activeTab = ref("unchecked");
+const errorMessage = ref("");
+const toastMessage = ref("");
+const showToast = ref(false);
+
+const uncheckedAlerts = computed(() => {
+  return alerts.value.filter((alert) => !alert.checked);
+});
+
+const checkedAlerts = computed(() => {
+  return alerts.value.filter((alert) => alert.checked);
+});
+
+const visibleAlerts = computed(() => {
+  return activeTab.value === "unchecked" ? uncheckedAlerts.value : checkedAlerts.value;
+});
+
+const openToast = (message) => {
+  toastMessage.value = message;
+  showToast.value = true;
+
+  window.setTimeout(() => {
+    showToast.value = false;
+  }, 2500);
+};
 
 const loadAlerts = async () => {
-  loading.value = true
-  errorMessage.value = ''
+  loading.value = true;
+  errorMessage.value = "";
 
   try {
-    const response = await alertApi.getAlerts()
-    alerts.value = response.data
+    const response = await alertApi.getAlerts();
+    alerts.value = response.data;
   } catch (error) {
-    errorMessage.value = '알림 목록을 불러오지 못했습니다.'
-    console.error(error)
+    errorMessage.value = "알림 목록을 불러오지 못했습니다.";
+    console.error(error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const checkAlert = async (alertId) => {
-  errorMessage.value = ''
+  errorMessage.value = "";
+  processingAlertId.value = alertId;
 
   try {
-    await alertApi.checkAlert(alertId)
-    await loadAlerts()
+    await alertApi.checkAlert(alertId);
+    await loadAlerts();
+    openToast(`알림 #${alertId} 확인 처리가 완료되었습니다.`);
   } catch (error) {
-    errorMessage.value = '알림 확인 처리에 실패했습니다.'
-    console.error(error)
+    errorMessage.value = "알림 확인 처리에 실패했습니다.";
+    console.error(error);
+  } finally {
+    processingAlertId.value = null;
   }
-}
+};
 
 const severityBadgeClass = (severity) => {
-  if (severity === 'CRITICAL') return 'bg-danger'
-  if (severity === 'WARNING') return 'bg-warning text-dark'
-  if (severity === 'INFO') return 'bg-info text-dark'
-  return 'bg-secondary'
-}
+  if (severity === "CRITICAL") return "bg-danger";
+  if (severity === "WARNING") return "bg-warning text-dark";
+  if (severity === "INFO") return "bg-info text-dark";
+  return "bg-secondary";
+};
 
 const formatDate = (dateText) => {
-  if (!dateText) return '-'
-  return dateText.replace('T', ' ').slice(0, 19)
-}
+  if (!dateText) return "-";
+  return dateText.replace("T", " ").slice(0, 19);
+};
 
 onMounted(() => {
-  loadAlerts()
-})
+  loadAlerts();
+});
 </script>
 
 <template>
@@ -55,7 +89,9 @@ onMounted(() => {
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h2 class="fw-bold mb-1">알림 관리</h2>
-        <p class="text-muted mb-0">장비 위험 및 안전 이벤트 알림을 확인합니다.</p>
+        <p class="text-muted mb-0">
+          장비 이상과 안전 이벤트 알림을 확인하고 처리 상태를 관리합니다.
+        </p>
       </div>
 
       <button class="btn btn-outline-primary" @click="loadAlerts">
@@ -68,56 +104,76 @@ onMounted(() => {
     </div>
 
     <div class="card shadow-sm">
-      <div class="card-header fw-bold">알림 목록</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-bold">알림 목록</span>
+
+        <div class="btn-group btn-group-sm">
+          <button
+            class="btn"
+            :class="activeTab === 'unchecked' ? 'btn-dark' : 'btn-outline-dark'"
+            @click="activeTab = 'unchecked'"
+          >
+            미확인 {{ uncheckedAlerts.length }}
+          </button>
+
+          <button
+            class="btn"
+            :class="activeTab === 'checked' ? 'btn-dark' : 'btn-outline-dark'"
+            @click="activeTab = 'checked'"
+          >
+            확인 완료 {{ checkedAlerts.length }}
+          </button>
+        </div>
+      </div>
 
       <div class="card-body">
         <div v-if="loading" class="alert alert-info mb-0">
           알림을 불러오는 중입니다.
         </div>
 
-        <div v-else-if="alerts.length === 0" class="text-muted">
-          등록된 알림이 없습니다.
+        <div v-else-if="visibleAlerts.length === 0" class="text-muted py-3">
+          {{ activeTab === "unchecked" ? "미확인 알림이 없습니다." : "확인 완료된 알림이 없습니다." }}
         </div>
 
         <div v-else class="table-responsive">
-          <table class="table table-hover align-middle">
+          <table class="table table-hover align-middle alert-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>장비</th>
-                <th>유형</th>
-                <th>심각도</th>
-                <th>메시지</th>
-                <th>확인 상태</th>
-                <th>발생 시간</th>
-                <th>처리</th>
+                <th class="col-id">번호</th>
+                <th class="col-device">장비</th>
+                <th class="col-type">알림 유형</th>
+                <th class="col-severity">중요도</th>
+                <th>내용</th>
+                <th class="col-status">확인 상태</th>
+                <th class="col-time">발생 시간</th>
+                <th class="col-action">처리</th>
               </tr>
             </thead>
 
             <tbody>
-              <tr v-for="alert in alerts" :key="alert.alertId">
-                <td>{{ alert.alertId }}</td>
-                <td>{{ alert.deviceName ?? '-' }}</td>
-                <td>{{ alert.alertType }}</td>
+              <tr v-for="alert in visibleAlerts" :key="alert.alertId">
+                <td class="text-muted">#{{ alert.alertId }}</td>
+                <td>{{ alert.deviceName ?? "-" }}</td>
+                <td>{{ alertTypeLabel(alert.alertType) }}</td>
                 <td>
                   <span class="badge" :class="severityBadgeClass(alert.severity)">
-                    {{ alert.severity }}
+                    {{ severityLabel(alert.severity) }}
                   </span>
                 </td>
-                <td>{{ alert.message }}</td>
+                <td class="message-cell">{{ readableAlertMessage(alert) }}</td>
                 <td>
                   <span class="badge" :class="alert.checked ? 'bg-success' : 'bg-secondary'">
-                    {{ alert.checked ? '확인 완료' : '미확인' }}
+                    {{ alert.checked ? "확인 완료" : "미확인" }}
                   </span>
                 </td>
-                <td>{{ formatDate(alert.createdAt) }}</td>
+                <td class="text-muted">{{ formatDate(alert.createdAt) }}</td>
                 <td>
                   <button
                     class="btn btn-sm btn-outline-success"
-                    :disabled="alert.checked"
+                    :disabled="alert.checked || processingAlertId === alert.alertId"
                     @click="checkAlert(alert.alertId)"
                   >
-                    확인
+                    {{ processingAlertId === alert.alertId ? "처리 중..." : "확인" }}
                   </button>
                 </td>
               </tr>
@@ -126,5 +182,78 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <div
+      class="toast-container position-fixed bottom-0 end-0 p-3"
+      style="z-index: 1080"
+    >
+      <div
+        v-if="showToast"
+        class="toast show"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div class="toast-header">
+          <strong class="me-auto">알림 처리</strong>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="닫기"
+            @click="showToast = false"
+          ></button>
+        </div>
+        <div class="toast-body">
+          {{ toastMessage }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.alert-table {
+  font-size: 0.9rem;
+}
+
+.alert-table th,
+.alert-table td {
+  vertical-align: middle;
+}
+
+.col-id {
+  width: 72px;
+}
+
+.col-device {
+  width: 160px;
+}
+
+.col-type {
+  width: 160px;
+}
+
+.col-severity {
+  width: 100px;
+}
+
+.col-status {
+  width: 110px;
+}
+
+.col-time {
+  width: 170px;
+}
+
+.col-action {
+  width: 90px;
+}
+
+.message-cell {
+  min-width: 280px;
+  max-width: 520px;
+  line-height: 1.45;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+</style>

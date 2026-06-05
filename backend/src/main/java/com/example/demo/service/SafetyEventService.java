@@ -33,7 +33,6 @@ public class SafetyEventService {
     private final AlertRepository alertRepository;
     private final AiAnalysisClient aiAnalysisClient;
 
-
     @Transactional
     public Long createSafetyEvent(SafetyEventCreateRequestDto requestDto) {
         Device device = getDeviceEntity(requestDto.getDeviceId());
@@ -54,13 +53,12 @@ public class SafetyEventService {
                 .resolved(false)
                 .build();
 
-        SafetyEvent safedEvent = safetyEventRepository.save(safetyEvent);
+        SafetyEvent savedEvent = safetyEventRepository.save(safetyEvent);
 
         createSafetyAlert(device, eventType, aiResult.getConfidence(), aiResult.getMessage());
 
-        return safedEvent.getEventId();
+        return savedEvent.getEventId();
     }
-
 
     public List<SafetyEventResponseDto> getSafetyEventList() {
         return safetyEventRepository.findAllByOrderByCreatedAtDesc()
@@ -80,37 +78,6 @@ public class SafetyEventService {
         safetyEvent.resolve();
     }
 
-    private Device getDeviceEntity(Long deviceId) {
-        return deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new BusinessException(
-                        HttpStatus.NOT_FOUND,
-                        "존재하지 않는 장비입니다. deviceId=" + deviceId
-                ));
-    }
-
-    private void createSafetyAlert (
-            Device device,
-            SafetyEventType eventType,
-            Double confidence,
-            String message
-    ) {
-        String alertMessage = String.format(
-                "[%s] 안전 이벤트 감지: %s / 신뢰도 %.2f - %s",
-                device.getDeviceName(),
-                eventType,
-                confidence,
-                message
-        );
-        Alert alert = Alert.builder()
-                .device(device)
-                .alertType(AlertType.SAFETY_EVENT)
-                .severity(AlertSeverity.CRITICAL)
-                .message(alertMessage)
-                .checked(false)
-                .build();
-
-        alertRepository.save(alert);
-    }
     public List<SafetyEventResponseDto> getSafetyEventsByDevice(Long deviceId) {
         getDeviceEntity(deviceId);
 
@@ -125,7 +92,6 @@ public class SafetyEventService {
         Device device = getDeviceEntity(deviceId);
 
         AiSafetyImageDetectionResponseDto aiResult = aiAnalysisClient.detectSafetyEventFromImage(file);
-
         SafetyEventType eventType = convertSafetyEventType(aiResult.getEventType());
 
         SafetyEvent safetyEvent = SafetyEvent.builder()
@@ -149,6 +115,21 @@ public class SafetyEventService {
         return savedEvent.getEventId();
     }
 
+    public List<SafetyEventResponseDto> getRecentSafetyEvents() {
+        return safetyEventRepository.findTop5ByOrderByCreatedAtDesc()
+                .stream()
+                .map(SafetyEventResponseDto::new)
+                .toList();
+    }
+
+    private Device getDeviceEntity(Long deviceId) {
+        return deviceRepository.findById(deviceId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND,
+                        "존재하지 않는 장비입니다. deviceId=" + deviceId
+                ));
+    }
+
     private SafetyEventType convertSafetyEventType(String eventType) {
         try {
             return SafetyEventType.valueOf(eventType);
@@ -158,6 +139,31 @@ public class SafetyEventService {
                     "AI 서버가 지원하지 않는 안전 이벤트 유형을 반환했습니다. eventType=" + eventType
             );
         }
+    }
+
+    private void createSafetyAlert(
+            Device device,
+            SafetyEventType eventType,
+            Double confidence,
+            String message
+    ) {
+        String alertMessage = String.format(
+                "[%s] 안전 이벤트 감지: %s / 신뢰도 %.2f - %s",
+                device.getDeviceName(),
+                eventType,
+                confidence,
+                message
+        );
+
+        Alert alert = Alert.builder()
+                .device(device)
+                .alertType(AlertType.SAFETY_EVENT)
+                .severity(AlertSeverity.CRITICAL)
+                .message(alertMessage)
+                .checked(false)
+                .build();
+
+        alertRepository.save(alert);
     }
 
     private void createYoloSafetyAlert(
@@ -187,12 +193,5 @@ public class SafetyEventService {
                 .build();
 
         alertRepository.save(alert);
-    }
-
-    public List<SafetyEventResponseDto> getRecentSafetyEvents() {
-        return safetyEventRepository.findTop5ByOrderByCreatedAtDesc()
-                .stream()
-                .map(SafetyEventResponseDto::new)
-                .toList();
     }
 }

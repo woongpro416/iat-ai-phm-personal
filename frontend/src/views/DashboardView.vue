@@ -3,8 +3,17 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { dashboardApi } from "../api/dashboardApi";
 import { alertApi } from "../api/alertApi";
 import { safetyEventApi } from "../api/safetyEventApi";
+import {
+  alertTypeLabel,
+  deviceStatusLabel,
+  eventTypeLabel,
+  readableAlertMessage,
+  readableSafetyEventMessage,
+  severityLabel,
+} from "../utils/displayLabels";
 
 const loading = ref(false);
+const hasLoaded = ref(false);
 const errorMessage = ref("");
 const refreshCountdown = ref(10);
 const autoRefreshing = ref(false);
@@ -63,8 +72,47 @@ const riskChartPoints = computed(() => {
     .join(" ");
 });
 
-const loadDashboard = async () => {
-  loading.value = true;
+const deviceStatusChart = computed(() => {
+  const items = [
+    {
+      label: deviceStatusLabel("NORMAL"),
+      status: "NORMAL",
+      count: summary.normalDevices,
+      barClass: "bg-success",
+    },
+    {
+      label: deviceStatusLabel("WARNING"),
+      status: "WARNING",
+      count: summary.warningDevices,
+      barClass: "bg-warning",
+    },
+    {
+      label: deviceStatusLabel("DANGER"),
+      status: "DANGER",
+      count: summary.dangerDevices,
+      barClass: "bg-danger",
+    },
+    {
+      label: deviceStatusLabel("OFFLINE"),
+      status: "OFFLINE",
+      count: summary.offlineDevices,
+      barClass: "bg-secondary",
+    },
+  ];
+
+  const maxCount = Math.max(...items.map((item) => item.count), 1);
+
+  return items.map((item) => ({
+    ...item,
+    percent: Math.round((item.count / maxCount) * 100),
+  }));
+});
+
+const loadDashboard = async ({ showLoading = !hasLoaded.value } = {}) => {
+  if (showLoading) {
+    loading.value = true;
+  }
+
   errorMessage.value = "";
 
   try {
@@ -79,7 +127,11 @@ const loadDashboard = async () => {
     errorMessage.value = "대시보드 데이터를 불러오지 못했습니다.";
     console.error(error);
   } finally {
-    loading.value = false;
+    if (showLoading) {
+      loading.value = false;
+    }
+
+    hasLoaded.value = true;
   }
 };
 
@@ -101,7 +153,7 @@ const startAutoRefresh = () => {
       autoRefreshing.value = true;
 
       try {
-        await loadDashboard();
+        await loadDashboard({ showLoading: false });
       } finally {
         autoRefreshing.value = false;
         refreshCountdown.value = 10;
@@ -174,7 +226,6 @@ onBeforeUnmount(() => {
   stopAutoRefresh();
 });
 </script>
-
 <template>
   <div>
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -249,7 +300,7 @@ onBeforeUnmount(() => {
                 class="badge mt-2"
                 :class="statusBadgeClass(summary.latestDeviceStatus)"
               >
-                {{ summary.latestDeviceStatus ?? "NO DATA" }}
+                {{ deviceStatusLabel(summary.latestDeviceStatus) }}
               </span>
             </div>
           </div>
@@ -276,87 +327,137 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="card shadow-sm mb-4">
-        <div class="card-header fw-bold">최근 위험도 변화</div>
+      <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+          <div class="card shadow-sm h-100">
+            <div class="card-header fw-bold">최근 위험도 변화</div>
 
-        <div class="card-body">
-          <div v-if="riskChartLogs.length === 0" class="text-muted">
-            표시할 위험도 데이터가 없습니다.
-          </div>
+            <div class="card-body">
+              <div v-if="riskChartLogs.length === 0" class="text-muted">
+                표시할 위험도 데이터가 없습니다.
+              </div>
 
-          <div v-else>
-            <svg viewBox="0 0 360 120" class="w-100" style="height: 180px">
-              <line x1="12" y1="108" x2="348" y2="108" stroke="#dee2e6" />
-              <line x1="12" y1="12" x2="12" y2="108" stroke="#dee2e6" />
+              <div v-else>
+                <svg viewBox="0 0 360 120" class="w-100" style="height: 180px">
+                  <line x1="12" y1="108" x2="348" y2="108" stroke="#dee2e6" />
+                  <line x1="12" y1="12" x2="12" y2="108" stroke="#dee2e6" />
 
-              <line
-                x1="12"
-                y1="60"
-                x2="348"
-                y2="60"
-                stroke="#ffc107"
-                stroke-dasharray="4 4"
-              />
-              <line
-                x1="12"
-                y1="31.2"
-                x2="348"
-                y2="31.2"
-                stroke="#dc3545"
-                stroke-dasharray="4 4"
-              />
+                  <line
+                    x1="12"
+                    y1="60"
+                    x2="348"
+                    y2="60"
+                    stroke="#ffc107"
+                    stroke-dasharray="4 4"
+                  />
+                  <line
+                    x1="12"
+                    y1="31.2"
+                    x2="348"
+                    y2="31.2"
+                    stroke="#dc3545"
+                    stroke-dasharray="4 4"
+                  />
 
-              <polyline
-                :points="riskChartPoints"
-                fill="none"
-                stroke="#0d6efd"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
+                  <polyline
+                    :points="riskChartPoints"
+                    fill="none"
+                    stroke="#0d6efd"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
 
-              <circle
-                v-for="(log, index) in riskChartLogs"
-                :key="log.statusId"
-                :cx="
-                  riskChartLogs.length === 1
-                    ? 180
-                    : 12 + (index * 336) / (riskChartLogs.length - 1)
-                "
-                :cy="108 - ((log.riskScore ?? 0) / 100) * 96"
-                r="4"
-                fill="#0d6efd"
-              />
-            </svg>
+                  <circle
+                    v-for="(log, index) in riskChartLogs"
+                    :key="log.statusId"
+                    :cx="
+                      riskChartLogs.length === 1
+                        ? 180
+                        : 12 + (index * 336) / (riskChartLogs.length - 1)
+                    "
+                    :cy="108 - ((log.riskScore ?? 0) / 100) * 96"
+                    r="4"
+                    fill="#0d6efd"
+                  />
+                </svg>
 
-            <div class="d-flex justify-content-between small text-muted mt-2">
-              <span>낮음</span>
-              <span>WARNING 50</span>
-              <span>DANGER 80</span>
-              <span>높음</span>
+                <div class="d-flex justify-content-between small text-muted mt-2">
+                  <span>낮음</span>
+                  <span>주의 기준 50</span>
+                  <span>위험 기준 80</span>
+                  <span>높음</span>
+                </div>
+
+                <div class="table-responsive mt-3">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>시간</th>
+                        <th>위험도</th>
+                        <th>상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="log in riskChartLogs" :key="`chart-${log.statusId}`">
+                        <td>{{ formatDate(log.createdAt) }}</td>
+                        <td>{{ log.riskScore }}</td>
+                        <td>
+                          <span class="badge" :class="statusBadgeClass(log.status)">
+                            {{ deviceStatusLabel(log.status) }}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <div class="table-responsive mt-3">
-              <table class="table table-sm align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>시간</th>
-                    <th>위험도</th>
-                    <th>상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="log in riskChartLogs" :key="`chart-${log.statusId}`">
-                    <td>{{ formatDate(log.createdAt) }}</td>
-                    <td>{{ log.riskScore }}</td>
-                    <td>
-                      <span class="badge" :class="statusBadgeClass(log.status)">
-                        {{ log.status }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+        <div class="col-lg-5">
+          <div class="card shadow-sm h-100">
+            <div class="card-header fw-bold">상태별 장비 수</div>
+
+            <div class="card-body">
+              <div v-if="summary.totalDevices === 0" class="text-muted">
+                등록된 장비가 없습니다.
+              </div>
+
+              <div v-else class="d-flex flex-column gap-3">
+                <div
+                  v-for="item in deviceStatusChart"
+                  :key="item.status"
+                >
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="fw-semibold">{{ item.label }}</span>
+                    <span class="small text-muted">{{ item.count }}대</span>
+                  </div>
+
+                  <div
+                    class="progress"
+                    style="height: 18px"
+                    role="progressbar"
+                    :aria-label="`${item.label} 장비 수`"
+                    :aria-valuenow="item.count"
+                    aria-valuemin="0"
+                    :aria-valuemax="summary.totalDevices"
+                  >
+                    <div
+                      class="progress-bar"
+                      :class="item.barClass"
+                      :style="{ width: `${item.percent}%` }"
+                    >
+                      {{ item.count }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="border-top pt-3 small text-muted">
+                  총 {{ summary.totalDevices }}대 기준 현재 장비 상태 분포입니다.
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -377,12 +478,12 @@ onBeforeUnmount(() => {
                 class="border-bottom pb-2 mb-2"
               >
                 <div class="d-flex justify-content-between">
-                  <strong>{{ alert.alertType }}</strong>
+                  <strong>{{ alertTypeLabel(alert.alertType) }}</strong>
                   <span class="badge" :class="severityBadgeClass(alert.severity)">
-                    {{ alert.severity }}
+                    {{ severityLabel(alert.severity) }}
                   </span>
                 </div>
-                <p class="mb-1 small">{{ alert.message }}</p>
+                <p class="mb-1 small">{{ readableAlertMessage(alert) }}</p>
                 <small class="text-muted">{{ formatDate(alert.createdAt) }}</small>
                 <div class="mt-2">
                   <button
@@ -412,7 +513,7 @@ onBeforeUnmount(() => {
                 class="border-bottom pb-3 mb-3"
               >
                 <div class="d-flex justify-content-between">
-                  <strong>{{ event.eventType }}</strong>
+                  <strong>{{ eventTypeLabel(event.eventType) }}</strong>
                   <span
                     class="badge"
                     :class="event.resolved ? 'bg-success' : 'bg-danger'"
@@ -421,7 +522,7 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
 
-                <p class="mb-1 small">{{ event.message }}</p>
+                <p class="mb-1 small">{{ readableSafetyEventMessage(event) }}</p>
                 <p class="mb-1 small text-muted">신뢰도 {{ event.confidence }}</p>
 
                 <img
@@ -458,10 +559,10 @@ onBeforeUnmount(() => {
                   <tr>
                     <th>ID</th>
                     <th>장비 ID</th>
-                    <th>온도</th>
-                    <th>진동</th>
-                    <th>소음</th>
-                    <th>위험도</th>
+                    <th><span class="metric-mark">℃</span> 온도</th>
+                    <th><span class="metric-mark">Hz</span> 진동</th>
+                    <th><span class="metric-mark">dB</span> 소음</th>
+                    <th><span class="metric-mark">%</span> 위험도</th>
                     <th>상태</th>
                     <th>시간</th>
                   </tr>
@@ -473,13 +574,13 @@ onBeforeUnmount(() => {
                   >
                     <td>{{ status.statusId }}</td>
                     <td>{{ status.deviceId }}</td>
-                    <td>{{ status.temperature }}</td>
-                    <td>{{ status.vibration }}</td>
-                    <td>{{ status.noise }}</td>
-                    <td>{{ status.riskScore }}</td>
+                    <td>{{ status.temperature }}℃</td>
+                    <td>{{ status.vibration }}Hz</td>
+                    <td>{{ status.noise }}dB</td>
+                    <td>{{ status.riskScore }}%</td>
                     <td>
                       <span class="badge" :class="statusBadgeClass(status.status)">
-                        {{ status.status }}
+                        {{ deviceStatusLabel(status.status) }}
                       </span>
                     </td>
                     <td>{{ formatDate(status.createdAt) }}</td>
@@ -501,3 +602,20 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.metric-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  margin-right: 4px;
+  border-radius: 6px;
+  background: #f1f3f5;
+  color: #495057;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+</style>
