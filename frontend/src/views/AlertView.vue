@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { alertApi } from "../api/alertApi";
 import {
   alertTypeLabel,
+  readableDeviceName,
   readableAlertMessage,
   severityLabel,
 } from "../utils/displayLabels";
@@ -99,6 +100,22 @@ const formatDate = (dateText) => {
   return dateText.replace("T", " ").slice(0, 19);
 };
 
+const formatDateParts = (dateText) => {
+  const formatted = formatDate(dateText);
+  if (formatted === "-") {
+    return {
+      date: "-",
+      time: "",
+    };
+  }
+
+  const [date, time] = formatted.split(" ");
+  return {
+    date,
+    time,
+  };
+};
+
 onMounted(() => {
   loadAlerts();
 });
@@ -173,7 +190,7 @@ onMounted(() => {
             <tbody>
               <tr v-for="alert in visibleAlerts" :key="alert.alertId">
                 <td class="text-muted">#{{ alert.alertId }}</td>
-                <td>{{ alert.deviceName ?? "-" }}</td>
+                <td class="device-cell">{{ readableDeviceName(alert.deviceName) }}</td>
                 <td>{{ alertTypeLabel(alert.alertType) }}</td>
                 <td>
                   <span class="badge" :class="severityBadgeClass(alert.severity)">
@@ -186,20 +203,24 @@ onMounted(() => {
                     {{ alert.checked ? "확인 완료" : "미확인" }}
                   </span>
                 </td>
-                <td class="text-muted">{{ formatDate(alert.createdAt) }}</td>
-                <td>
+                <td class="time-cell">
+                  <span>{{ formatDateParts(alert.createdAt).date }}</span>
+                  <small>{{ formatDateParts(alert.createdAt).time }}</small>
+                </td>
+                <td class="action-cell">
                   <button
-                    class="btn btn-sm btn-outline-primary me-1"
+                    class="btn btn-sm action-button btn-detail me-1"
                     @click="openAlertDetail(alert)"
                   >
                     상세
                   </button>
                   <button
-                    class="btn btn-sm btn-outline-success"
+                    class="btn btn-sm action-button"
+                    :class="alert.checked ? 'btn-complete' : 'btn-check-soft'"
                     :disabled="alert.checked || processingAlertId === alert.alertId"
                     @click="checkAlert(alert.alertId)"
                   >
-                    {{ processingAlertId === alert.alertId ? "처리 중..." : "확인" }}
+                    {{ alert.checked ? "완료" : processingAlertId === alert.alertId ? "처리 중..." : "확인" }}
                   </button>
                 </td>
               </tr>
@@ -222,7 +243,7 @@ onMounted(() => {
               알림 #{{ selectedAlert.alertId }}
             </h5>
             <p class="text-muted mb-0">
-              {{ selectedAlert.deviceName || "대상 장비 없음" }}
+              {{ readableDeviceName(selectedAlert.deviceName) }}
             </p>
           </div>
 
@@ -332,7 +353,7 @@ onMounted(() => {
 }
 
 .col-device {
-  width: 160px;
+  width: 110px;
 }
 
 .col-type {
@@ -353,6 +374,70 @@ onMounted(() => {
 
 .col-action {
   width: 150px;
+}
+
+.device-cell {
+  min-width: 96px;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.time-cell {
+  min-width: 116px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.time-cell span,
+.time-cell small {
+  display: block;
+}
+
+.time-cell small {
+  margin-top: 3px;
+  color: #6c757d;
+}
+
+.action-cell {
+  white-space: nowrap;
+}
+
+.action-button {
+  min-width: 64px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.btn-detail {
+  border: 1px solid rgba(22, 124, 114, 0.42);
+  color: #0f5f58;
+  background: rgba(22, 124, 114, 0.08);
+}
+
+.btn-detail:hover {
+  border-color: #167c72;
+  color: #fff;
+  background: #167c72;
+}
+
+.btn-check-soft {
+  border: 1px solid rgba(118, 87, 168, 0.36);
+  color: #5e4785;
+  background: rgba(118, 87, 168, 0.1);
+}
+
+.btn-check-soft:hover {
+  border-color: #7657a8;
+  color: #fff;
+  background: #7657a8;
+}
+
+.btn-complete,
+.btn-complete:disabled {
+  border-color: #167c72;
+  color: #fff;
+  background: #167c72;
+  opacity: 0.86;
 }
 
 .message-cell {

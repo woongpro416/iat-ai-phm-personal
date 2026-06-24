@@ -78,11 +78,22 @@ export const deviceTypeLabel = (deviceType) => {
   return deviceTypeLabels[deviceType] ?? fallbackCodeLabel(deviceType);
 };
 
+export const readableDeviceName = (deviceName) => {
+  if (!deviceName) return "대상 장비";
+
+  const shuttleMatch = String(deviceName).match(/IAT-SHUTTLE-(\d+)/);
+  if (shuttleMatch) {
+    return `셔틀 ${Number(shuttleMatch[1])}호`;
+  }
+
+  return deviceName;
+};
+
 export const readableSafetyEventMessage = (event) => {
   if (!event) return "-";
 
   const eventName = eventTypeLabel(event.eventType);
-  const deviceName = event.deviceName || "선택 장비";
+  const deviceName = readableDeviceName(event.deviceName || "선택 장비");
 
   return `${deviceName}에서 ${eventName} 이벤트가 감지되었습니다.`;
 };
@@ -90,7 +101,7 @@ export const readableSafetyEventMessage = (event) => {
 export const readableAlertMessage = (alert) => {
   if (!alert) return "-";
 
-  const deviceName = alert.deviceName || "대상 장비";
+  const deviceName = readableDeviceName(alert.deviceName || "대상 장비");
 
   if (alert.alertType === "DEVICE_RISK") {
     return `${deviceName}의 장비 상태가 주의 또는 위험 수준으로 감지되었습니다. 장비 상태 로그를 확인하세요.`;

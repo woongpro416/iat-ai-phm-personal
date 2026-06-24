@@ -18,7 +18,7 @@ public class DeviceStatusCreateRequestDto {
     private Double temperature;
 
     @NotNull(message = "진동은 필수입니다.")
-    @DecimalMin(value = "0.0", message = "소음 값은 0 이상이어야 합니다.")
+    @DecimalMin(value = "0.0", message = "진동 값은 0 이상이어야 합니다.")
     private Double vibration;
 
     @NotNull(message = "소음은 필수입니다.")

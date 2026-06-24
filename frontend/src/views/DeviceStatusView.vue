@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { deviceApi } from "../api/deviceApi";
-import { deviceStatusLabel, deviceTypeLabel } from "../utils/displayLabels";
+import { deviceStatusLabel, deviceTypeLabel, readableDeviceName } from "../utils/displayLabels";
 
 const devices = ref([]);
 const statusLogs = ref([]);
@@ -28,6 +28,25 @@ const statusForm = reactive({
 const selectedDevice = computed(() => {
   return devices.value.find((device) => device.deviceId === Number(selectedDeviceId.value));
 });
+
+const toNumberOrNull = (value) => {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  return Number(value);
+};
+
+const getApiErrorMessage = (error, fallbackMessage) => {
+  const responseData = error.response?.data;
+  const fieldErrors = responseData?.fieldErrors;
+
+  if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+    return Object.values(fieldErrors).join(" ");
+  }
+
+  return responseData?.message || fallbackMessage;
+};
 
 const loadDevices = async () => {
   const response = await deviceApi.getDevices();
@@ -78,7 +97,7 @@ const createDevice = async () => {
     successMessage.value = "장비가 등록되었습니다.";
     await loadDevices();
   } catch (error) {
-    errorMessage.value = "장비 등록에 실패했습니다.";
+    errorMessage.value = getApiErrorMessage(error, "장비 등록에 실패했습니다.");
     console.error(error);
   } finally {
     savingDevice.value = false;
@@ -95,9 +114,9 @@ const createStatusLog = async () => {
   try {
     await deviceApi.createDeviceStatus({
       deviceId: Number(selectedDeviceId.value),
-      temperature: Number(statusForm.temperature),
-      vibration: Number(statusForm.vibration),
-      noise: Number(statusForm.noise),
+      temperature: toNumberOrNull(statusForm.temperature),
+      vibration: toNumberOrNull(statusForm.vibration),
+      noise: toNumberOrNull(statusForm.noise),
     });
 
     statusForm.temperature = "";
@@ -108,7 +127,7 @@ const createStatusLog = async () => {
     await loadDevices();
     await loadStatusLogs();
   } catch (error) {
-    errorMessage.value = "장비 상태 로그 등록에 실패했습니다.";
+    errorMessage.value = getApiErrorMessage(error, "장비 상태 로그 등록에 실패했습니다.");
     console.error(error);
   } finally {
     savingStatus.value = false;
@@ -236,7 +255,7 @@ onMounted(() => {
               <select v-model="selectedDeviceId" class="form-select" @change="changeDevice">
                 <option value="" disabled>장비 선택</option>
                 <option v-for="device in devices" :key="device.deviceId" :value="device.deviceId">
-                  {{ device.deviceName }} / {{ device.location }}
+                  {{ readableDeviceName(device.deviceName) }} / {{ device.location }}
                 </option>
               </select>
             </div>

@@ -1,7 +1,7 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-      <RouterLink class="navbar-brand fw-bold" to="/dashboard">
+  <nav class="navbar navbar-expand-lg app-navbar">
+    <div class="container-fluid app-navbar-inner">
+      <RouterLink class="navbar-brand fw-bold" to="/">
         IAT AI Safety
       </RouterLink>
 
@@ -16,6 +16,9 @@
 
       <div id="navbarNav" class="collapse navbar-collapse">
         <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <RouterLink class="nav-link" to="/">홈</RouterLink>
+          </li>
           <li class="nav-item">
             <RouterLink class="nav-link" to="/dashboard">대시보드</RouterLink>
           </li>

@@ -126,7 +126,15 @@ docker logs iat-backend
 - 요청이 `multipart/form-data` 형식인지 확인한다.
 - 필드명이 `deviceId`, `file`인지 확인한다.
 - `deviceId`에 해당하는 장비가 DB에 존재하는지 확인한다.
+- 파일이 비어 있지 않은지 확인한다.
+- `Content-Type`이 `image/`로 시작하는 실제 이미지인지 확인한다.
 - FastAPI 응답의 `eventType`이 Spring enum에 있는 값인지 확인한다.
+
+400 응답이 정상인 경우:
+
+- 빈 파일 업로드
+- 텍스트, 압축 파일 등 비이미지 업로드
+- Swagger/API 클라이언트에서 `file` 필드 누락
 
 지원 이벤트 타입:
 
@@ -170,11 +178,40 @@ Spring Boot 안전 이벤트 응답에서 원본은 `imageUrl`, bbox 결과 이�
 - 문서와 소스 파일을 UTF-8로 저장한다.
 - DB에 이미 저장된 깨진 메시지는 프론트 라벨 수정만으로 복구되지 않는다.
 - 새로 생성한 데이터에서도 깨진다면 backend 또는 ai-server 로그의 인코딩을 확인한다.
+- Windows PowerShell 5에서 UTF-8 BOM 없는 `.ps1`의 한글 문자열이 깨질 수 있다.
 
 운영 판단:
 
 - 시연용 DB에 깨진 기존 데이터가 많으면 볼륨 초기화 또는 신규 시드 생성 여부를 결정한다.
 - 기존 사용자 데이터가 있는 환경에서는 임의 삭제하지 않는다.
+
+시연 DB에서 깨진 seed 데이터만 지우는 예시:
+
+```powershell
+@'
+BEGIN;
+
+CREATE TEMP TABLE bad_seed_devices AS
+SELECT device_id
+FROM devices
+WHERE device_name LIKE '%?%'
+   OR location LIKE '%?%';
+
+DELETE FROM alerts
+WHERE device_id IN (SELECT device_id FROM bad_seed_devices);
+
+DELETE FROM safety_events
+WHERE device_id IN (SELECT device_id FROM bad_seed_devices);
+
+DELETE FROM device_status_logs
+WHERE device_id IN (SELECT device_id FROM bad_seed_devices);
+
+DELETE FROM devices
+WHERE device_id IN (SELECT device_id FROM bad_seed_devices);
+
+COMMIT;
+'@ | docker exec -i iat-ai-phm-postgres psql -U postgres -d iat-ai-phm-postgres
+```
 
 ## 10. 포트 충돌이 발생할 때
 

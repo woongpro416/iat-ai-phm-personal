@@ -4,11 +4,13 @@ import DashboardView from '../views/DashboardView.vue'
 import SafetyEventView from '../views/SafetyEventView.vue'
 import AlertView from '../views/AlertView.vue'
 import DeviceStatusView from '../views/DeviceStatusView.vue'
+import HomeView from '../views/HomeView.vue'
 
 const routes = [
   {
     path: '/',
-    redirect: '/dashboard',
+    name: 'Home',
+    component: HomeView,
   },
   {
     path: '/dashboard',

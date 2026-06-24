@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 
 from schemas.device_status_schema import DeviceStatusRequest, DeviceStatusResponse
@@ -63,12 +63,19 @@ def detect_safety_event(request: SafetyDetectionRequest):
 
 @app.post("/detect/safety/image", response_model=SafetyImageDetectionResponse)
 async def detect_safety_event_from_image(file: UploadFile = File(...)):
-    file_extension = os.path.splitext(file.filename)[1] or ".jpg"
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="이미지 파일만 업로드할 수 있습니다.")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="빈 이미지 파일은 업로드할 수 없습니다.")
+
+    file_extension = os.path.splitext(file.filename or "")[1] or ".jpg"
     saved_filename = f"{uuid4()}{file_extension}"
     saved_path = ORIGINAL_IMAGE_DIR / saved_filename
 
     with open(saved_path, "wb") as buffer:
-        buffer.write(await file.read())
+        buffer.write(file_bytes)
 
     result = safety_detection_service.detect_safety_event_from_image(
         image_path=str(saved_path),

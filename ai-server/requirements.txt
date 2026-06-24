@@ -4,3 +4,5 @@ pydantic
 python-multipart
 ultralytics
 opencv-python
+scikit-learn
+joblib

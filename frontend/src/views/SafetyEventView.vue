@@ -2,7 +2,11 @@
 import { computed, onMounted, ref } from "vue";
 import { deviceApi } from "../api/deviceApi";
 import { safetyEventApi } from "../api/safetyEventApi";
-import { eventTypeLabel, readableSafetyEventMessage } from "../utils/displayLabels";
+import {
+  eventTypeLabel,
+  readableDeviceName,
+  readableSafetyEventMessage,
+} from "../utils/displayLabels";
 
 const devices = ref([]);
 const events = ref([]);
@@ -53,13 +57,33 @@ const loadPage = async () => {
 
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
-  selectedFile.value = file || null;
 
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value);
+    previewUrl.value = "";
   }
 
-  previewUrl.value = file ? URL.createObjectURL(file) : "";
+  errorMessage.value = "";
+  selectedFile.value = null;
+
+  if (!file) {
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    errorMessage.value = "이미지 파일만 업로드할 수 있습니다.";
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size === 0) {
+    errorMessage.value = "빈 이미지 파일은 업로드할 수 없습니다.";
+    event.target.value = "";
+    return;
+  }
+
+  selectedFile.value = file;
+  previewUrl.value = URL.createObjectURL(file);
 };
 
 const uploadImage = async () => {
@@ -125,6 +149,22 @@ const detectionSummaryLines = (event) => {
 const formatDate = (dateText) => {
   if (!dateText) return "-";
   return dateText.replace("T", " ").slice(0, 19);
+};
+
+const formatDateParts = (dateText) => {
+  const formatted = formatDate(dateText);
+  if (formatted === "-") {
+    return {
+      date: "-",
+      time: "",
+    };
+  }
+
+  const [date, time] = formatted.split(" ");
+  return {
+    date,
+    time,
+  };
 };
 
 const resolvedBadgeClass = (resolved) => {
@@ -251,8 +291,8 @@ onMounted(() => {
             <tbody>
               <tr v-for="event in events" :key="event.eventId">
                 <td class="text-muted">#{{ event.eventId }}</td>
-                <td>{{ event.deviceName }}</td>
-                <td>{{ eventTypeLabel(event.eventType) }}</td>
+                <td class="device-cell">{{ readableDeviceName(event.deviceName) }}</td>
+                <td class="event-type-cell">{{ eventTypeLabel(event.eventType) }}</td>
                 <td>{{ event.confidence }}</td>
                 <td class="event-message-cell">{{ readableSafetyEventMessage(event) }}</td>
                 <td class="status-cell">
@@ -281,16 +321,20 @@ onMounted(() => {
                   </div>
                   <span v-else class="text-muted">-</span>
                 </td>
-                <td>{{ formatDate(event.createdAt) }}</td>
+                <td class="time-cell">
+                  <span>{{ formatDateParts(event.createdAt).date }}</span>
+                  <small>{{ formatDateParts(event.createdAt).time }}</small>
+                </td>
                 <td class="action-cell">
                   <button
-                    class="btn btn-sm btn-outline-primary action-button me-1"
+                    class="btn btn-sm action-button btn-detail me-1"
                     @click="openEventDetail(event)"
                   >
                     상세
                   </button>
                   <button
-                    class="btn btn-sm btn-outline-success action-button"
+                    class="btn btn-sm action-button"
+                    :class="event.resolved ? 'btn-complete' : 'btn-resolve'"
                     :disabled="event.resolved"
                     @click="resolveEvent(event.eventId)"
                   >
@@ -317,7 +361,7 @@ onMounted(() => {
               안전 이벤트 #{{ selectedEvent.eventId }}
             </h5>
             <p class="text-muted mb-0">
-              {{ selectedEvent.deviceName }} / {{ formatDate(selectedEvent.createdAt) }}
+              {{ readableDeviceName(selectedEvent.deviceName) }} / {{ formatDate(selectedEvent.createdAt) }}
             </p>
           </div>
 
@@ -413,12 +457,74 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.device-cell {
+  min-width: 96px;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.event-type-cell {
+  min-width: 128px;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.time-cell {
+  min-width: 116px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.time-cell span,
+.time-cell small {
+  display: block;
+}
+
+.time-cell small {
+  margin-top: 3px;
+  color: #6c757d;
+}
+
 .action-cell {
-  width: 184px;
+  width: 178px;
 }
 
 .action-button {
-  min-width: 68px;
+  min-width: 70px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.btn-detail {
+  border: 1px solid rgba(22, 124, 114, 0.42);
+  color: #0f5f58;
+  background: rgba(22, 124, 114, 0.08);
+}
+
+.btn-detail:hover {
+  border-color: #167c72;
+  color: #fff;
+  background: #167c72;
+}
+
+.btn-resolve {
+  border: 1px solid rgba(212, 147, 31, 0.48);
+  color: #8c5f0d;
+  background: rgba(212, 147, 31, 0.12);
+}
+
+.btn-resolve:hover {
+  border-color: #d4931f;
+  color: #17201b;
+  background: #f1c76f;
+}
+
+.btn-complete,
+.btn-complete:disabled {
+  border-color: #167c72;
+  color: #fff;
+  background: #167c72;
+  opacity: 0.86;
 }
 
 .event-message-cell {

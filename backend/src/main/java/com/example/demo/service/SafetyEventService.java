@@ -91,6 +91,8 @@ public class SafetyEventService {
 
     @Transactional
     public Long createSafetyEventFromImage(Long deviceId, MultipartFile file) {
+        validateSafetyImageFile(file);
+
         Device device = getDeviceEntity(deviceId);
 
         AiSafetyImageDetectionResponseDto aiResult = aiAnalysisClient.detectSafetyEventFromImage(file);
@@ -132,6 +134,23 @@ public class SafetyEventService {
                         HttpStatus.NOT_FOUND,
                         "존재하지 않는 장비입니다. deviceId=" + deviceId
                 ));
+    }
+
+    private void validateSafetyImageFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "이미지 파일은 필수입니다."
+            );
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "이미지 파일만 업로드할 수 있습니다."
+            );
+        }
     }
 
     private SafetyEventType convertSafetyEventType(String eventType) {

@@ -2,7 +2,7 @@
   <div>
     <AppNavbar />
 
-    <main class="container-fluid app-shell py-4">
+    <main class="container-fluid app-shell">
       <router-view />
     </main>
   </div>
@@ -16,7 +16,6 @@ import AppNavbar from "./components/AppNavbar.vue";
 .app-shell {
   max-width: 1480px;
   margin: 0 auto;
-  padding-left: 24px;
-  padding-right: 24px;
+  padding: 28px 24px 44px;
 }
 </style>

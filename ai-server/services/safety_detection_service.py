@@ -90,7 +90,16 @@ class SafetyDetectionService:
         if image is None:
             return None
 
-        for detection in detections:
+        bbox_colors = (
+            (40, 220, 40),
+            (0, 180, 255),
+            (255, 120, 40),
+            (220, 80, 220),
+            (255, 220, 40),
+            (80, 180, 255),
+        )
+
+        for index, detection in enumerate(detections):
             bbox = detection["bbox"]
             x1 = int(bbox["x1"])
             y1 = int(bbox["y1"])
@@ -98,15 +107,16 @@ class SafetyDetectionService:
             y2 = int(bbox["y2"])
 
             label = f'{detection["className"]} {detection["confidence"]:.2f}'
+            color = bbox_colors[index % len(bbox_colors)]
 
-            cv2.rectangle(image, (x1, y1), (x2, y2), (0, 180, 255), 2)
+            cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
             cv2.putText(
                 image,
                 label,
                 (x1, max(y1 - 8, 20)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
-                (0, 180, 255),
+                color,
                 2,
                 cv2.LINE_AA
             )

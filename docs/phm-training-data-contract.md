@@ -183,7 +183,57 @@ Validation 또는 test에 고장 라벨이 한 건도 없다면 precision, recal
 PR-AUC를 의미 있게 평가할 수 없다. 이 경우 비율을 임의로 섞기보다 더 긴
 기간의 데이터를 확보하거나 시간 경계를 조정한다.
 
-## 8. 다음 작업
+## 8. 현재 구현 상태
 
-다음 한 단계에서는 학습 가능한 feature 행을 숫자 입력 배열과 이진 라벨
-배열로 변환하는 모델 입력 변환 함수를 구현한다.
+현재 PHM 학습 파이프라인은 실제 모델 학습 전 단계까지 구현되어 있다.
+
+- 학습 CSV 필수 컬럼 검증
+- `deviceId + sampledAt` grain 중복 검증
+- timezone 포함 ISO-8601 timestamp 검증
+- `failureWithinHorizon` 이진 라벨 검증
+- 장비별 rolling mean/std feature 생성
+- 현재 행을 제외한 과거 데이터 기반 feature 계산
+- 시간 순서 기반 train/validation/test split
+- prediction horizon 기준 purge 처리
+- split별 라벨 분포와 시간 순서 품질 점검
+- 학습 가능한 feature 행을 `X`, `y`, `featureNames`로 변환
+- scikit-learn `RandomForestClassifier` baseline 학습 CLI
+- validation/test precision, recall, F1, ROC-AUC, PR-AUC, false alarm rate, confusion matrix 산출
+- `joblib` 기반 모델 artifact 저장
+- Markdown 평가 리포트 생성
+- 관련 Python unittest 작성
+
+아직 미구현된 범위:
+
+- 실제 운영 FastAPI 추론 모델을 `phm-rf-baseline-v1`로 교체
+- lead time 평가
+- rule baseline과 ML baseline 비교 리포트 고도화
+- 실제 수집 데이터셋 기반 성능 해석
+
+## 9. 다음 작업
+
+다음 한 단계에서는 계약에 맞는 CSV를 준비한 뒤 baseline 학습 명령을 실행해
+artifact와 리포트를 생성한다.
+
+샘플 CSV는 다음 명령으로 재생성할 수 있다.
+
+```powershell
+cd ai-server
+python -m training.phm_sample_dataset_generator `
+  --output-path datasets/phm/sample_phm_training.csv
+```
+
+```powershell
+cd ai-server
+python -m training.phm_baseline_trainer `
+  datasets/phm/sample_phm_training.csv `
+  --artifact-path model_artifacts/phm/phm_rf_v1.joblib `
+  --report-path ../docs/phm-baseline-report.md
+```
+
+생성 결과:
+
+- `ai-server/datasets/phm/sample_phm_training.csv`
+- `ai-server/model_artifacts/phm/phm_rf_v1.joblib`
+- `docs/phm-baseline-report.md`
+- `docs/phm-baseline-comparison.md`
