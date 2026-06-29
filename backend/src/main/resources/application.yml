@@ -27,3 +27,7 @@ spring:
 ai:
   server:
     url: ${AI_SERVER_URL:http://localhost:8000}
+app:
+  demo:
+    write-protection-enabled: ${DEMO_WRITE_PROTECTION_ENABLED:true}
+    write-token: ${DEMO_WRITE_TOKEN:}
